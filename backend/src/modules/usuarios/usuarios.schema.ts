@@ -1,0 +1,79 @@
+import { z } from "zod";
+import { DiaSemana } from "@prisma/client";
+import { ehEmailAcademico } from "../../utils/email";
+
+const diaSemanaEnum = z.nativeEnum(DiaSemana);
+
+const doisDiasPedidosSchema = z
+  .object({
+    diaPedido1: diaSemanaEnum,
+    diaPedido2: diaSemanaEnum,
+  })
+  .refine((dias) => dias.diaPedido1 !== dias.diaPedido2, {
+    message: "A 1a e a 2a opcao de dia devem ser diferentes.",
+    path: ["diaPedido2"],
+  });
+
+export const criarUsuarioSchema = z
+  .object({
+    nome: z.string().trim().min(1, "Nome e obrigatorio."),
+    email: z
+      .string()
+      .trim()
+      .email("Email invalido.")
+      .refine(ehEmailAcademico, "Email deve ser o email academico institucional."),
+    rgm: z.string().trim().min(1, "RGM e obrigatorio."),
+    eAdmin: z.boolean().optional().default(false),
+    /** Se omitido, a senha padrao (3 letras do nome + 4 digitos do RGM) e usada. */
+    senha: z.string().min(4).optional(),
+    diaPedido1: diaSemanaEnum.optional(),
+    diaPedido2: diaSemanaEnum.optional(),
+  })
+  .refine((dados) => !dados.diaPedido1 === !dados.diaPedido2, {
+    message: "Informe as 2 opcoes de dia, ou nenhuma.",
+    path: ["diaPedido2"],
+  })
+  .refine((dados) => !dados.diaPedido1 || dados.diaPedido1 !== dados.diaPedido2, {
+    message: "A 1a e a 2a opcao de dia devem ser diferentes.",
+    path: ["diaPedido2"],
+  });
+export type CriarUsuarioInput = z.infer<typeof criarUsuarioSchema>;
+
+export const atualizarUsuarioSchema = z.object({
+  nome: z.string().trim().min(1).optional(),
+  email: z
+    .string()
+    .trim()
+    .email("Email invalido.")
+    .refine(ehEmailAcademico, "Email deve ser o email academico institucional.")
+    .optional(),
+  rgm: z.string().trim().min(1).optional(),
+  eAdmin: z.boolean().optional(),
+  senha: z.string().min(4).optional(),
+});
+export type AtualizarUsuarioInput = z.infer<typeof atualizarUsuarioSchema>;
+
+export const substituirDiaAulaSchema = doisDiasPedidosSchema;
+export type SubstituirDiaAulaInput = z.infer<typeof substituirDiaAulaSchema>;
+
+export const loginSchema = z.object({
+  email: z.string().trim().email("Email invalido."),
+  senha: z.string().min(1, "Senha e obrigatoria."),
+});
+export type LoginInput = z.infer<typeof loginSchema>;
+
+export const alterarSenhaSchema = z.object({
+  senhaAtual: z.string().min(1, "Senha atual e obrigatoria."),
+  novaSenha: z.string().min(4, "Nova senha deve ter pelo menos 4 caracteres."),
+});
+export type AlterarSenhaInput = z.infer<typeof alterarSenhaSchema>;
+
+export const esqueciSenhaSchema = z.object({
+  email: z.string().trim().email("Email invalido."),
+});
+export type EsqueciSenhaInput = z.infer<typeof esqueciSenhaSchema>;
+
+export const importarUsuariosSchema = z.object({
+  spreadsheetIdOuUrl: z.string().trim().min(1, "Informe o ID ou o link da planilha."),
+});
+export type ImportarUsuariosInput = z.infer<typeof importarUsuariosSchema>;

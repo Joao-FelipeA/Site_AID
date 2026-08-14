@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Usada so pelo Prisma Migrate (precisa de conexao direta, nao pelo
+  // pooler/pgbouncer do Supabase). Em runtime o Client continua usando a
+  // DATABASE_URL (pooled) normalmente.
+  directUrl = env("DIRECT_URL")
+}
+
+enum DiaSemana {
+  SEGUNDA
+  TERCA
+  QUARTA
+  QUINTA
+  SEXTA
+}
+
+// De onde veio o dia final atribuido ao aluno: a 1a opcao que ele pediu na
+// planilha, a 2a opcao (quando a 1a estava cheia), ou uma realocacao total
+// pra outro dia qualquer (quando nem a 1a nem a 2a tinham vaga).
+enum OrigemDiaAula {
+  PRIMEIRA_OPCAO
+  SEGUNDA_OPCAO
+  REALOCADO
+}
+
+// Tabela "Usuario" do diagrama. Campo Email foi adicionado (nao existia no
+// diagrama original) pois o login exige o email academico do aluno.
+// O aluno pede 2 dias (1a e 2a opcao) na planilha, mas fica matriculado em
+// apenas 1 dia final (diaAula): tenta a 1a opcao, senao a 2a, senao realoca
+// pra qualquer outro dia com vaga.
+model Usuario {
+  uuid                   String         @id @default(uuid())
+  nome                   String
+  email                  String         @unique
+  rgm                    String         @unique
+  senha                  String
+  senhaAlterada          Boolean        @default(false) @map("senha_alterada")
+  resetSenhaSolicitado   Boolean        @default(false) @map("reset_senha_solicitado")
+  resetSenhaSolicitadoEm DateTime?      @map("reset_senha_solicitado_em")
+  diaPedido1             DiaSemana?     @map("dia_pedido_1")
+  diaPedido2             DiaSemana?     @map("dia_pedido_2")
+  diaAula                DiaSemana?     @map("dia_aula")
+  origemDiaAula          OrigemDiaAula? @map("origem_dia_aula")
+  frequencia             Int            @default(0)
+  eAdmin                 Boolean        @default(false) @map("e_admin")
+  dtaCriacao             DateTime       @default(now()) @map("dta_criacao")
+  dtaAtualizacao         DateTime       @updatedAt @map("dta_atualizacao")
+
+  presencas Presenca[]
+
+  @@map("usuario")
+}
+
+// Tabela "Aulas" do diagrama. Data_aula = data especifica da sessao;
+// Dia_Aula = dia da semana (derivado da data, guardado para facilitar
+// consultas/casamento com a matricula do aluno).
+model Aula {
+  uuid           String    @id @default(uuid())
+  dataAula       DateTime  @map("data_aula")
+  diaAula        DiaSemana @map("dia_aula")
+  qrCodePresenca String    @unique @map("qr_code_presenca")
+  qtdAluno       Int       @default(0) @map("qtd_aluno")
+  qtdPresenca    Int       @default(0) @map("qtd_presenca")
+  finalizada     Boolean   @default(false)
+  dtaCriacao     DateTime  @default(now()) @map("dta_criacao")
+  dtaAtualizacao DateTime  @updatedAt @map("dta_atualizacao")
+
+  presencas Presenca[]
+
+  @@map("aula")
+}
+
+// Nao existia no diagrama original: necessaria para saber QUEM
+// especificamente compareceu em cada aula (o diagrama so guardava a
+// contagem agregada QTD_presenca em Aulas).
+model Presenca {
+  uuid        String   @id @default(uuid())
+  aulaUuid    String   @map("aula_uuid")
+  aula        Aula     @relation(fields: [aulaUuid], references: [uuid], onDelete: Cascade)
+  usuarioUuid String   @map("usuario_uuid")
+  usuario     Usuario  @relation(fields: [usuarioUuid], references: [uuid], onDelete: Cascade)
+  marcadoEm   DateTime @default(now()) @map("marcado_em")
+
+  @@unique([aulaUuid, usuarioUuid])
+  @@map("presenca")
+}
+
+// Tabela "Doacao" do diagrama.
+model Doacao {
+  uuid       String   @id @default(uuid())
+  nome       String
+  contato    String
+  dtaCriacao DateTime @default(now()) @map("dta_criacao")
+
+  materiais MaterialDoado[]
+
+  @@map("doacao")
+}
+
+// Tabela "Material_Doado" do diagrama.
+model MaterialDoado {
+  uuid          String   @id @default(uuid())
+  doacaoUuid    String   @map("doacao_id")
+  doacao        Doacao   @relation(fields: [doacaoUuid], references: [uuid], onDelete: Cascade)
+  materialDoado String   @map("material_doado")
+  dtaCriacao    DateTime @default(now()) @map("dta_criacao")
+
+  @@map("material_doado")
+}

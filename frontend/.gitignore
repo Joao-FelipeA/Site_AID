@@ -1,0 +1,21 @@
+node_modules/
+dist/
+dist-ssr/
+.env
+.env.local
+*.log
+.DS_Store
+*.local
+
+# Vite
+.vite/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
