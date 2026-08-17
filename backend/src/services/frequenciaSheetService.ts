@@ -38,20 +38,20 @@ export async function sincronizarPlanilhaFrequencia(): Promise<void> {
     orderBy: { nome: "asc" },
   });
 
-  const ultimaAulaPorDia = new Map<string, string>(); // diaAula -> aulaUuid
+  const ultimaAulaPorDia = new Map<string, { uuid: string; dataAula: Date }>();
   const totalFinalizadasPorDia = new Map<string, number>(); // diaAula -> qtd aulas finalizadas
   for (const dia of ORDEM_DIAS_SEMANA) {
     const ultima = await prisma.aula.findFirst({
       where: { diaAula: dia, finalizada: true },
       orderBy: { dataAula: "desc" },
     });
-    if (ultima) ultimaAulaPorDia.set(dia, ultima.uuid);
+    if (ultima) ultimaAulaPorDia.set(dia, { uuid: ultima.uuid, dataAula: ultima.dataAula });
 
     const total = await prisma.aula.count({ where: { diaAula: dia, finalizada: true } });
     totalFinalizadasPorDia.set(dia, total);
   }
 
-  const aulaUuids = [...ultimaAulaPorDia.values()];
+  const aulaUuids = [...ultimaAulaPorDia.values()].map((a) => a.uuid);
   const presencas = await prisma.presenca.findMany({ where: { aulaUuid: { in: aulaUuids } } });
   const presencaSet = new Set(presencas.map((p) => `${p.aulaUuid}:${p.usuarioUuid}`));
 
@@ -71,15 +71,20 @@ export async function sincronizarPlanilhaFrequencia(): Promise<void> {
         continue;
       }
 
-      const aulaUuid = ultimaAulaPorDia.get(dia);
-      if (!aulaUuid) {
+      const aulaInfo = ultimaAulaPorDia.get(dia);
+      if (!aulaInfo) {
         linha.push("Sem aula finalizada");
         statusLinha.push(null);
         continue;
       }
 
-      const presente = presencaSet.has(`${aulaUuid}:${usuario.uuid}`);
-      linha.push(presente ? "Presente" : "Falta");
+      const presente = presencaSet.has(`${aulaInfo.uuid}:${usuario.uuid}`);
+      const dataFormatada = aulaInfo.dataAula.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+      linha.push(dataFormatada);
       statusLinha.push(presente ? "verde" : "vermelho");
     }
 

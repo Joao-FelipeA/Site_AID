@@ -101,6 +101,7 @@ precisam de uma conta de servico:
 | GET | /aulas/:uuid/qrcode | admin | gerar QR code da aula |
 | POST | /aulas/:uuid/presenca | autenticado | aluno marca presenca via QR |
 | POST | /aulas/:uuid/finalizar | admin | fecha a aula e sincroniza frequencia |
+| POST | /aulas/sincronizar-frequencia | admin | forca resincronizar a planilha de frequencia sem finalizar aula |
 | POST | /doacoes | publico | criar doacao + materiais (sem login) |
 | GET | /doacoes | autenticado | listar doacoes |
 | GET/PUT/DELETE | /doacoes/:uuid | autenticado | detalhe / editar / remover |

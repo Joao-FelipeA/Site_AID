@@ -66,16 +66,33 @@ export function AulasTab({ mostrarMensagem }: Props) {
     }
   }
 
+  async function sincronizarFrequencia() {
+    try {
+      await api.post("/aulas/sincronizar-frequencia");
+      mostrarMensagem("Planilha de frequência sincronizada.", "sucesso");
+    } catch (e) {
+      mostrarMensagem(e instanceof ApiError ? e.message : "Falha ao sincronizar planilha.");
+    }
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg text-cyan font-headline uppercase tracking-widest">Gerenciar Aulas</h3>
-        <button
-          onClick={() => setModal({ tipo: "nova" })}
-          className="bg-neon/10 border border-neon text-neon hover:bg-neon hover:text-black px-4 py-2 text-xs uppercase tracking-widest transition-colors rounded-sm"
-        >
-          ➕ Nova Aula
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={sincronizarFrequencia}
+            className="bg-cyan/10 border border-cyan text-cyan hover:bg-cyan hover:text-black px-4 py-2 text-xs uppercase tracking-widest transition-colors rounded-sm"
+          >
+            🔄 Sincronizar Planilha
+          </button>
+          <button
+            onClick={() => setModal({ tipo: "nova" })}
+            className="bg-neon/10 border border-neon text-neon hover:bg-neon hover:text-black px-4 py-2 text-xs uppercase tracking-widest transition-colors rounded-sm"
+          >
+            ➕ Nova Aula
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto border border-cyan/20 rounded-md bg-panel/50">

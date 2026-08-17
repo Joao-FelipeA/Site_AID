@@ -67,3 +67,9 @@ export async function finalizar(req: Request, res: Response): Promise<void> {
     avisoPlanilha,
   });
 }
+
+/** Forca uma resincronizacao da planilha de frequencia sem precisar finalizar uma aula. */
+export async function sincronizarFrequencia(_req: Request, res: Response): Promise<void> {
+  await sincronizarPlanilhaFrequencia();
+  res.json({ mensagem: "Planilha de frequencia sincronizada." });
+}
