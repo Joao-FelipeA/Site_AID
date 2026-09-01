@@ -40,8 +40,9 @@ tanto no dev server quanto no preview - nao precisa de config extra tipo
 | `/trocar-senha` | Forcado no primeiro login / senha redefinida por admin |
 | `/dashboard` | Painel do aluno: dia de aula, frequencia |
 | `/presenca-confirmar?aula=&token=` | Aberta ao escanear o QR code da aula |
+| `/presenca-confirmar-robotica?aula=&token=` | Aberta ao escanear o QR code da aula de robotica |
 | `/doacao` | Registrar doacao (doador + materiais) - acesso publico, sem login |
-| `/admin` | Painel admin: usuarios, aulas, doacoes |
+| `/admin` | Painel admin: usuarios, aulas, robotica, doacoes |
 | `/quem-somos`, `/fale-conosco` | Paginas institucionais estaticas |
 
 ## Estrutura
@@ -50,10 +51,13 @@ tanto no dev server quanto no preview - nao precisa de config extra tipo
 - `src/lib/auth.tsx` - `AuthContext`/`useAuth`, sessao em localStorage
 - `src/lib/types.ts` - tipos dos dados retornados pelo backend
 - `src/lib/diasSemana.ts` - labels dos dias da semana (espelha o backend)
+- `src/lib/horarioRobotica.ts` - labels dos horarios de robotica + helper
+  pra data da proxima sexta (espelha o backend)
 - `src/components/` - `Header`, `Layout`, `Modal`, `Banner`, `HudContainer`,
-  `SelectDiaSemana`, `RouteGuards` (`ProtectedRoute`/`AdminRoute`)
-- `src/pages/` - uma pasta/arquivo por rota; `pages/admin/` tem as 3 abas
-  do painel (`UsuariosTab`, `AulasTab`, `DoacoesTab`)
+  `SelectDiaSemana`, `SelectHorarioRobotica`, `RouteGuards`
+  (`ProtectedRoute`/`AdminRoute`)
+- `src/pages/` - uma pasta/arquivo por rota; `pages/admin/` tem as 4 abas
+  do painel (`UsuariosTab`, `AulasTab`, `AulaRoboticaTab`, `DoacoesTab`)
 
 ## Logo
 

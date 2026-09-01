@@ -1,13 +1,20 @@
-import { DiaSemana, Prisma, PrismaClient } from "@prisma/client";
+import { DiaSemana, HorarioRobotica, Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/appError";
 import { assinarToken } from "../../lib/jwt";
 import { compararSenha, gerarSenhaPadrao, hashSenha } from "../../lib/senha";
 import { ehEmailAcademico } from "../../utils/email";
 import { parseDiaSemana } from "../../utils/diasSemana";
+import { parseHorarioRobotica, parseInteresseRobotica } from "../../utils/horarioRobotica";
 import { baixarPlanilhaPublicaComoCsv } from "../../lib/planilhaPublica";
 import { env } from "../../config/env";
 import { alocarDias, ocupacaoVazia, OcupacaoPorDia, ResultadoAlocacaoAluno } from "../../services/alocacaoDias";
+import {
+  alocarHorariosRobotica,
+  ocupacaoRoboticaVazia,
+  OcupacaoPorHorario,
+  ResultadoAlocacaoRobotica,
+} from "../../services/alocacaoRobotica";
 import { CriarUsuarioInput, AtualizarUsuarioInput } from "./usuarios.schema";
 
 type ClientOuTx = PrismaClient | Prisma.TransactionClient;
@@ -29,12 +36,41 @@ async function obterOcupacaoAtual(client: ClientOuTx, excluirUsuarioUuid?: strin
   return ocupacao;
 }
 
+async function obterOcupacaoRoboticaAtual(
+  client: ClientOuTx,
+  excluirUsuarioUuid?: string,
+): Promise<OcupacaoPorHorario> {
+  const grupos = await client.usuario.groupBy({
+    by: ["horarioRobotica"],
+    _count: { _all: true },
+    where: {
+      horarioRobotica: { not: null },
+      ...(excluirUsuarioUuid ? { uuid: { not: excluirUsuarioUuid } } : {}),
+    },
+  });
+
+  const ocupacao = ocupacaoRoboticaVazia();
+  for (const grupo of grupos) {
+    if (grupo.horarioRobotica) ocupacao[grupo.horarioRobotica] = grupo._count._all;
+  }
+  return ocupacao;
+}
+
 function dadosDoResultadoAlocacao(resultado: ResultadoAlocacaoAluno) {
   return {
     diaPedido1: resultado.diaPedido1,
     diaPedido2: resultado.diaPedido2,
     diaAula: resultado.diaAula,
     origemDiaAula: resultado.origem,
+  };
+}
+
+function dadosDoResultadoRobotica(resultado: ResultadoAlocacaoRobotica) {
+  return {
+    interesseRobotica: true,
+    horarioRoboticaPedido: resultado.horarioPedido,
+    horarioRobotica: resultado.horario,
+    origemHorarioRobotica: resultado.origem,
   };
 }
 
@@ -62,6 +98,17 @@ export async function criarUsuario(input: CriarUsuarioInput) {
       dadosDia = dadosDoResultadoAlocacao(resultados[0]);
     }
 
+    let dadosRobotica: ReturnType<typeof dadosDoResultadoRobotica> | {} = {};
+    if (input.interesseRobotica && input.horarioRoboticaPedido) {
+      const ocupacaoRobotica = await obterOcupacaoRoboticaAtual(tx);
+      const { resultados } = alocarHorariosRobotica(
+        [{ chave: "novo", horarioPedido: input.horarioRoboticaPedido }],
+        ocupacaoRobotica,
+        env.capacidadeMaximaRobotica,
+      );
+      dadosRobotica = dadosDoResultadoRobotica(resultados[0]);
+    }
+
     const usuario = await tx.usuario.create({
       data: {
         nome: input.nome,
@@ -70,6 +117,7 @@ export async function criarUsuario(input: CriarUsuarioInput) {
         eAdmin: input.eAdmin,
         senha: senhaHash,
         ...dadosDia,
+        ...dadosRobotica,
       },
     });
 
@@ -167,6 +215,39 @@ export async function substituirDiaAula(uuid: string, diaPedido1: DiaSemana, dia
   });
 }
 
+/**
+ * Define/troca o interesse e horario de robotica do usuario. Se
+ * `interesse` for false, limpa tudo (aluno sai da robotica). Se true,
+ * libera o horario atual dele (se tiver) antes de recalcular a ocupacao e
+ * tenta o horario pedido, realocando se estiver cheio.
+ */
+export async function substituirRobotica(uuid: string, interesse: boolean, horarioPedido: HorarioRobotica | null) {
+  return prisma.$transaction(async (tx) => {
+    if (!interesse || !horarioPedido) {
+      const usuario = await tx.usuario.update({
+        where: { uuid },
+        data: {
+          interesseRobotica: false,
+          horarioRoboticaPedido: null,
+          horarioRobotica: null,
+          origemHorarioRobotica: null,
+        },
+      });
+      return { usuario, resultado: null };
+    }
+
+    const ocupacao = await obterOcupacaoRoboticaAtual(tx, uuid);
+    const { resultados } = alocarHorariosRobotica([{ chave: uuid, horarioPedido }], ocupacao, env.capacidadeMaximaRobotica);
+
+    const usuario = await tx.usuario.update({
+      where: { uuid },
+      data: dadosDoResultadoRobotica(resultados[0]),
+    });
+
+    return { usuario, resultado: resultados[0] };
+  });
+}
+
 export async function login(email: string, senhaPlana: string) {
   const usuario = await prisma.usuario.findUnique({ where: { email: email.trim().toLowerCase() } });
   if (!usuario) {
@@ -195,6 +276,9 @@ export interface RelatorioImportacaoUsuario {
   diaPedido2: DiaSemana;
   diaAula: DiaSemana | null;
   origem: string | null;
+  interesseRobotica: boolean;
+  horarioRobotica: HorarioRobotica | null;
+  origemRobotica: string | null;
 }
 
 export interface ResultadoImportacao {
@@ -207,23 +291,33 @@ export interface ResultadoImportacao {
 
 /**
  * Le uma planilha publica do Google Sheets (colunas Nome | Email | RGM |
- * Dia1 | Dia2, a partir da linha 2) via export CSV publico, e SUBSTITUI
- * TODOS os alunos (nao-admin) pelos da planilha: apaga todos e cria novos,
- * alocando cada um em 1 dia final (tenta Dia1, depois Dia2, ou realoca).
- * Contas de administrador nao sao afetadas.
+ * Dia1 | Dia2 | InteresseRobotica | HorarioRobotica, a partir da linha 2)
+ * via export CSV publico, e SUBSTITUI TODOS os alunos (nao-admin) pelos da
+ * planilha: apaga todos e cria novos, alocando cada um em 1 dia final
+ * (tenta Dia1, depois Dia2, ou realoca) e, se houver interesse em
+ * robotica, em 1 horario final tambem. As 2 ultimas colunas sao opcionais:
+ * se ausentes ou invalidas, o aluno e importado normalmente, so sem
+ * robotica. Contas de administrador nao sao afetadas.
  */
 export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Promise<ResultadoImportacao> {
   const todasLinhas = await baixarPlanilhaPublicaComoCsv(spreadsheetIdOuUrl);
   const linhas = todasLinhas.slice(1); // pula o cabecalho
 
-  const novos: { nome: string; email: string; rgm: string; diaPedido1: DiaSemana; diaPedido2: DiaSemana }[] = [];
+  const novos: {
+    nome: string;
+    email: string;
+    rgm: string;
+    diaPedido1: DiaSemana;
+    diaPedido2: DiaSemana;
+    horarioRoboticaPedido: HorarioRobotica | null;
+  }[] = [];
   const linhasInvalidas: LinhaImportacaoInvalida[] = [];
   const rgmsVistos = new Set<string>();
   const emailsVistos = new Set<string>();
   let totalPreenchidas = 0;
 
   linhas.forEach((linha, index) => {
-    const [nome, email, rgm, dia1Texto, dia2Texto] = linha;
+    const [nome, email, rgm, dia1Texto, dia2Texto, interesseRoboticaTexto, horarioRoboticaTexto] = linha;
     if (!nome?.trim() && !email?.trim() && !rgm?.trim()) return; // linha em branco
 
     totalPreenchidas += 1;
@@ -248,12 +342,27 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
       }
       const diaPedido1 = parseDiaSemana(dia1Texto);
       const diaPedido2 = parseDiaSemana(dia2Texto);
+      if (diaPedido1 === DiaSemana.SEXTA || diaPedido2 === DiaSemana.SEXTA) {
+        throw new Error("Sexta-feira e exclusiva para robotica, nao esta mais disponivel para aula normal.");
+      }
       if (diaPedido1 === diaPedido2) {
         throw new Error("A 1a e a 2a opcao de dia devem ser diferentes.");
       }
+
+      // Robotica e opcional e best-effort: se o texto vier ausente ou
+      // invalido, o aluno e importado do mesmo jeito, so sem robotica.
+      let horarioRoboticaPedido: HorarioRobotica | null = null;
+      if (parseInteresseRobotica(interesseRoboticaTexto)) {
+        try {
+          horarioRoboticaPedido = parseHorarioRobotica(horarioRoboticaTexto ?? "");
+        } catch {
+          horarioRoboticaPedido = null;
+        }
+      }
+
       rgmsVistos.add(rgmLimpo);
       emailsVistos.add(emailLimpo);
-      novos.push({ nome: nome.trim(), email: emailLimpo, rgm: rgmLimpo, diaPedido1, diaPedido2 });
+      novos.push({ nome: nome.trim(), email: emailLimpo, rgm: rgmLimpo, diaPedido1, diaPedido2, horarioRoboticaPedido });
     } catch (erro) {
       linhasInvalidas.push({ linha: numeroLinha, motivo: (erro as Error).message });
     }
@@ -266,6 +375,14 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
   );
   const resultadoPorRgm = new Map(resultados.map((r) => [r.chave, r]));
 
+  const interessadosRobotica = novos.filter((n) => n.horarioRoboticaPedido);
+  const { resultados: resultadosRobotica } = alocarHorariosRobotica(
+    interessadosRobotica.map((n) => ({ chave: n.rgm, horarioPedido: n.horarioRoboticaPedido as HorarioRobotica })),
+    ocupacaoRoboticaVazia(),
+    env.capacidadeMaximaRobotica,
+  );
+  const resultadoRoboticaPorRgm = new Map(resultadosRobotica.map((r) => [r.chave, r]));
+
   const relatorio: RelatorioImportacaoUsuario[] = [];
 
   const totalApagados = await prisma.$transaction(async (tx) => {
@@ -274,6 +391,7 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
     for (const novo of novos) {
       const senhaHash = await hashSenha(gerarSenhaPadrao(novo.nome, novo.rgm));
       const resultado = resultadoPorRgm.get(novo.rgm);
+      const resultadoRobotica = resultadoRoboticaPorRgm.get(novo.rgm);
 
       await tx.usuario.create({
         data: {
@@ -282,6 +400,7 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
           rgm: novo.rgm,
           senha: senhaHash,
           ...(resultado ? dadosDoResultadoAlocacao(resultado) : {}),
+          ...(resultadoRobotica ? dadosDoResultadoRobotica(resultadoRobotica) : {}),
         },
       });
 
@@ -293,6 +412,9 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
         diaPedido2: novo.diaPedido2,
         diaAula: resultado?.diaAula ?? null,
         origem: resultado?.origem ?? null,
+        interesseRobotica: !!novo.horarioRoboticaPedido,
+        horarioRobotica: resultadoRobotica?.horario ?? null,
+        origemRobotica: resultadoRobotica?.origem ?? null,
       });
     }
 

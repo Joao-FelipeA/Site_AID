@@ -8,6 +8,7 @@ import {
   importarUsuariosSchema,
   loginSchema,
   substituirDiaAulaSchema,
+  substituirRoboticaSchema,
 } from "./usuarios.schema";
 import * as usuariosService from "./usuarios.service";
 
@@ -52,6 +53,16 @@ export async function remover(req: Request, res: Response): Promise<void> {
 export async function substituirDia(req: Request, res: Response): Promise<void> {
   const { diaPedido1, diaPedido2 } = substituirDiaAulaSchema.parse(req.body);
   const { usuario, resultado } = await usuariosService.substituirDiaAula(req.params.uuid, diaPedido1, diaPedido2);
+  res.json({ usuario: sanitizar(usuario), resultado });
+}
+
+export async function substituirRobotica(req: Request, res: Response): Promise<void> {
+  const { interesse, horarioPedido } = substituirRoboticaSchema.parse(req.body);
+  const { usuario, resultado } = await usuariosService.substituirRobotica(
+    req.params.uuid,
+    interesse,
+    horarioPedido ?? null,
+  );
   res.json({ usuario: sanitizar(usuario), resultado });
 }
 

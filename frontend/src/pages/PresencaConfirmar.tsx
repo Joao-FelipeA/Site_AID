@@ -6,7 +6,12 @@ import { Banner } from "../components/Banner";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
-export function PresencaConfirmar() {
+interface Props {
+  /** Prefixo da rota da API: "/aulas" (normal) ou "/aulas-robotica". */
+  caminhoBase?: string;
+}
+
+export function PresencaConfirmar({ caminhoBase = "/aulas" }: Props) {
   const { usuario } = useAuth();
   const [params] = useSearchParams();
   const aula = params.get("aula");
@@ -22,7 +27,7 @@ export function PresencaConfirmar() {
     setCarregando(true);
 
     try {
-      await api.post(`/aulas/${aula}/presenca`, { token });
+      await api.post(`${caminhoBase}/${aula}/presenca`, { token });
       setConfirmada(true);
     } catch (e) {
       setErro(e instanceof ApiError ? e.message : "Falha ao confirmar presença.");

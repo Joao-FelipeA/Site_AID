@@ -6,6 +6,7 @@ import { Banner } from "../components/Banner";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { labelDiaSemana, labelOrigemDiaAula } from "../lib/diasSemana";
+import { labelHorarioRobotica, labelOrigemRobotica } from "../lib/horarioRobotica";
 import type { Usuario } from "../lib/types";
 
 export function Dashboard() {
@@ -68,6 +69,30 @@ export function Dashboard() {
               </div>
             )}
           </div>
+
+          {perfil?.interesseRobotica && (
+            <div className="w-full mt-4">
+              <p className="font-body text-[0.6rem] text-gray-400 uppercase tracking-[0.15em] font-semibold mb-2 text-left">
+                Robótica
+              </p>
+              <div className="flex flex-col gap-2 w-full">
+                {perfil.horarioRobotica ? (
+                  <div className="flex items-center justify-between bg-[#050D15]/50 border border-purple-400/30 rounded-md px-3 py-2">
+                    <span className="text-sm text-white font-medium">
+                      Sexta-feira, {labelHorarioRobotica(perfil.horarioRobotica)}
+                    </span>
+                    {perfil.origemHorarioRobotica === "REALOCADO" && (
+                      <span className="text-[10px] text-yellow-400 border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 rounded-full">
+                        {labelOrigemRobotica(perfil.origemHorarioRobotica)}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-xs text-center py-2">Nenhum horário de robótica atribuído ainda.</p>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 w-full">
             <button

@@ -4,6 +4,7 @@ import { Login } from "./pages/Login";
 import { TrocarSenha } from "./pages/TrocarSenha";
 import { Dashboard } from "./pages/Dashboard";
 import { PresencaConfirmar } from "./pages/PresencaConfirmar";
+import { PresencaConfirmarRobotica } from "./pages/PresencaConfirmarRobotica";
 import { Doacao } from "./pages/Doacao";
 import { QuemSomos } from "./pages/QuemSomos";
 import { FaleConosco } from "./pages/FaleConosco";
@@ -25,6 +26,7 @@ export function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/presenca-confirmar" element={<PresencaConfirmar />} />
+        <Route path="/presenca-confirmar-robotica" element={<PresencaConfirmarRobotica />} />
 
         <Route element={<AdminRoute />}>
           <Route path="/admin" element={<AdminDashboard />} />

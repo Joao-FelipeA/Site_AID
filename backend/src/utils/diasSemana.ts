@@ -1,11 +1,13 @@
 import { DiaSemana } from "@prisma/client";
 
+// Sexta-feira nao entra mais aqui: virou dia exclusivo da robotica, entao
+// nao faz parte do pool de dias pra matricula/realocacao de aula normal
+// nem das colunas da planilha de frequencia normal.
 export const ORDEM_DIAS_SEMANA: DiaSemana[] = [
   DiaSemana.SEGUNDA,
   DiaSemana.TERCA,
   DiaSemana.QUARTA,
   DiaSemana.QUINTA,
-  DiaSemana.SEXTA,
 ];
 
 const LABEL_POR_DIA: Record<DiaSemana, string> = {

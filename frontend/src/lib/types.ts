@@ -2,6 +2,10 @@ export type DiaSemana = "SEGUNDA" | "TERCA" | "QUARTA" | "QUINTA" | "SEXTA";
 
 export type OrigemDiaAula = "PRIMEIRA_OPCAO" | "SEGUNDA_OPCAO" | "REALOCADO";
 
+export type HorarioRobotica = "H13" | "H14" | "H15" | "H16";
+
+export type OrigemHorarioRobotica = "PEDIDO" | "REALOCADO";
+
 export interface Usuario {
   uuid: string;
   nome: string;
@@ -15,6 +19,11 @@ export interface Usuario {
   diaAula: DiaSemana | null;
   origemDiaAula: OrigemDiaAula | null;
   frequencia: number;
+  interesseRobotica: boolean;
+  horarioRoboticaPedido: HorarioRobotica | null;
+  horarioRobotica: HorarioRobotica | null;
+  origemHorarioRobotica: OrigemHorarioRobotica | null;
+  frequenciaRobotica: number;
   eAdmin: boolean;
   dtaCriacao: string;
   dtaAtualizacao: string;
@@ -24,6 +33,18 @@ export interface Aula {
   uuid: string;
   dataAula: string;
   diaAula: DiaSemana;
+  qrCodePresenca: string;
+  qtdAluno: number;
+  qtdPresenca: number;
+  finalizada: boolean;
+  dtaCriacao: string;
+  dtaAtualizacao: string;
+}
+
+export interface AulaRobotica {
+  uuid: string;
+  dataAula: string;
+  horario: HorarioRobotica;
   qrCodePresenca: string;
   qtdAluno: number;
   qtdPresenca: number;
@@ -66,6 +87,12 @@ export interface ResultadoAlocacaoAluno {
   origem: OrigemDiaAula | null;
 }
 
+export interface ResultadoAlocacaoRobotica {
+  horarioPedido: HorarioRobotica;
+  horario: HorarioRobotica | null;
+  origem: OrigemHorarioRobotica | null;
+}
+
 export interface RelatorioImportacaoUsuario {
   nome: string;
   email: string;
@@ -74,6 +101,9 @@ export interface RelatorioImportacaoUsuario {
   diaPedido2: DiaSemana;
   diaAula: DiaSemana | null;
   origem: OrigemDiaAula | null;
+  interesseRobotica: boolean;
+  horarioRobotica: HorarioRobotica | null;
+  origemRobotica: OrigemHorarioRobotica | null;
 }
 
 export interface LinhaImportacaoInvalida {

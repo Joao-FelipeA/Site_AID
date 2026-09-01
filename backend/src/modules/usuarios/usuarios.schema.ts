@@ -1,13 +1,19 @@
 import { z } from "zod";
-import { DiaSemana } from "@prisma/client";
+import { DiaSemana, HorarioRobotica } from "@prisma/client";
 import { ehEmailAcademico } from "../../utils/email";
 
 const diaSemanaEnum = z.nativeEnum(DiaSemana);
+const horarioRoboticaEnum = z.nativeEnum(HorarioRobotica);
+
+/** Sexta-feira e exclusiva pra robotica: nao e mais uma opcao valida pra aula normal. */
+const diaUtilRegularEnum = diaSemanaEnum.refine((dia) => dia !== DiaSemana.SEXTA, {
+  message: "Sexta-feira e exclusiva para robotica, nao esta mais disponivel para aula normal.",
+});
 
 const doisDiasPedidosSchema = z
   .object({
-    diaPedido1: diaSemanaEnum,
-    diaPedido2: diaSemanaEnum,
+    diaPedido1: diaUtilRegularEnum,
+    diaPedido2: diaUtilRegularEnum,
   })
   .refine((dias) => dias.diaPedido1 !== dias.diaPedido2, {
     message: "A 1a e a 2a opcao de dia devem ser diferentes.",
@@ -26,8 +32,10 @@ export const criarUsuarioSchema = z
     eAdmin: z.boolean().optional().default(false),
     /** Se omitido, a senha padrao (3 letras do nome + 4 digitos do RGM) e usada. */
     senha: z.string().min(4).optional(),
-    diaPedido1: diaSemanaEnum.optional(),
-    diaPedido2: diaSemanaEnum.optional(),
+    diaPedido1: diaUtilRegularEnum.optional(),
+    diaPedido2: diaUtilRegularEnum.optional(),
+    interesseRobotica: z.boolean().optional().default(false),
+    horarioRoboticaPedido: horarioRoboticaEnum.optional(),
   })
   .refine((dados) => !dados.diaPedido1 === !dados.diaPedido2, {
     message: "Informe as 2 opcoes de dia, ou nenhuma.",
@@ -36,6 +44,10 @@ export const criarUsuarioSchema = z
   .refine((dados) => !dados.diaPedido1 || dados.diaPedido1 !== dados.diaPedido2, {
     message: "A 1a e a 2a opcao de dia devem ser diferentes.",
     path: ["diaPedido2"],
+  })
+  .refine((dados) => !dados.interesseRobotica || !!dados.horarioRoboticaPedido, {
+    message: "Informe o horario de robotica pedido quando houver interesse.",
+    path: ["horarioRoboticaPedido"],
   });
 export type CriarUsuarioInput = z.infer<typeof criarUsuarioSchema>;
 
@@ -55,6 +67,17 @@ export type AtualizarUsuarioInput = z.infer<typeof atualizarUsuarioSchema>;
 
 export const substituirDiaAulaSchema = doisDiasPedidosSchema;
 export type SubstituirDiaAulaInput = z.infer<typeof substituirDiaAulaSchema>;
+
+export const substituirRoboticaSchema = z
+  .object({
+    interesse: z.boolean(),
+    horarioPedido: horarioRoboticaEnum.optional(),
+  })
+  .refine((dados) => !dados.interesse || !!dados.horarioPedido, {
+    message: "Informe o horario pedido quando houver interesse na robotica.",
+    path: ["horarioPedido"],
+  });
+export type SubstituirRoboticaInput = z.infer<typeof substituirRoboticaSchema>;
 
 export const loginSchema = z.object({
   email: z.string().trim().email("Email invalido."),

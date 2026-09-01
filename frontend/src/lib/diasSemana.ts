@@ -1,6 +1,9 @@
 import type { DiaSemana, OrigemDiaAula } from "./types";
 
-export const ORDEM_DIAS_SEMANA: DiaSemana[] = ["SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA"];
+// Sexta-feira e exclusiva pra robotica: nao entra mais nas opcoes de dia
+// de aula normal (so aparece se um registro antigo ainda tiver ela, via
+// labelDiaSemana).
+export const ORDEM_DIAS_SEMANA: DiaSemana[] = ["SEGUNDA", "TERCA", "QUARTA", "QUINTA"];
 
 const LABEL_DIA_SEMANA: Record<DiaSemana, string> = {
   SEGUNDA: "Segunda-Feira",

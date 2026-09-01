@@ -16,7 +16,8 @@ export const env = {
   emailDominio: process.env.EMAIL_DOMINIO ?? "@cs.unipe.edu.br",
   /** URL onde o frontend estatico e servido; usada para montar o link do QR code de presenca. */
   frontendUrl: (process.env.FRONTEND_URL ?? "http://localhost:5500").replace(/\/$/, ""),
-  capacidadeMaximaPorDia: Number(process.env.CAPACIDADE_MAXIMA_POR_DIA ?? 11),
+  capacidadeMaximaPorDia: Number(process.env.CAPACIDADE_MAXIMA_POR_DIA ?? 15),
+  capacidadeMaximaRobotica: Number(process.env.CAPACIDADE_MAXIMA_ROBOTICA ?? process.env.CAPACIDADE_MAXIMA_POR_DIA ?? 15),
   google: {
     clientEmail: process.env.GOOGLE_CLIENT_EMAIL ?? "",
     privateKey: (process.env.GOOGLE_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),

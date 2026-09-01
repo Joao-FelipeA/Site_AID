@@ -1,9 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { Modal } from "../../components/Modal";
 import { SelectDiaSemana } from "../../components/SelectDiaSemana";
+import { SelectHorarioRobotica } from "../../components/SelectHorarioRobotica";
 import { api, ApiError } from "../../lib/api";
 import { formatarData, labelDiaSemana, labelOrigemDiaAula } from "../../lib/diasSemana";
-import type { DiaSemana, ResultadoAlocacaoAluno, ResultadoImportacao, Usuario } from "../../lib/types";
+import { labelHorarioRobotica, labelOrigemRobotica } from "../../lib/horarioRobotica";
+import type {
+  DiaSemana,
+  HorarioRobotica,
+  ResultadoAlocacaoAluno,
+  ResultadoAlocacaoRobotica,
+  ResultadoImportacao,
+  Usuario,
+} from "../../lib/types";
 import type { MostrarMensagem } from "./AdminDashboard";
 
 interface Props {
@@ -17,6 +26,7 @@ type EstadoModal =
   | { tipo: "novo" }
   | { tipo: "editar"; usuario: Usuario }
   | { tipo: "trocar-dias"; usuario: Usuario }
+  | { tipo: "robotica"; usuario: Usuario }
   | { tipo: "importar" }
   | { tipo: "relatorio-importacao"; resultado: ResultadoImportacao };
 
@@ -77,6 +87,7 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">RGM</th>
               <th className="px-4 py-3">Dia</th>
+              <th className="px-4 py-3">Robótica</th>
               <th className="px-4 py-3">Freq.</th>
               <th className="px-4 py-3">Perfil</th>
               <th className="px-4 py-3 text-right">Ações</th>
@@ -85,7 +96,7 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
           <tbody className="divide-y divide-cyan/10">
             {usuarios.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
                   Nenhum usuário cadastrado.
                 </td>
               </tr>
@@ -121,6 +132,22 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
                       <span className="text-gray-600 text-xs">—</span>
                     )}
                   </td>
+                  <td className="px-4 py-2">
+                    {usuario.interesseRobotica ? (
+                      usuario.horarioRobotica ? (
+                        <span
+                          className="text-[10px] bg-purple-500/10 border border-purple-400/40 text-purple-300 px-1.5 py-0.5 rounded"
+                          title={usuario.origemHorarioRobotica ? labelOrigemRobotica(usuario.origemHorarioRobotica) : undefined}
+                        >
+                          Sex {labelHorarioRobotica(usuario.horarioRobotica)}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-yellow-400">sem vaga</span>
+                      )
+                    ) : (
+                      <span className="text-gray-600 text-xs">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2">{usuario.frequencia}</td>
                   <td className="px-4 py-2">
                     {usuario.eAdmin ? (
@@ -145,6 +172,12 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
                       className="bg-yellow-500/10 text-yellow-400 text-xs uppercase px-2 py-1.5 border border-yellow-500/50 hover:bg-yellow-500 hover:text-black transition-colors rounded"
                     >
                       Dias
+                    </button>{" "}
+                    <button
+                      onClick={() => setModal({ tipo: "robotica", usuario })}
+                      className="bg-purple-500/10 text-purple-300 text-xs uppercase px-2 py-1.5 border border-purple-400/50 hover:bg-purple-400 hover:text-black transition-colors rounded"
+                    >
+                      Robótica
                     </button>{" "}
                     <button
                       onClick={() => resetarSenha(usuario)}
@@ -205,6 +238,27 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
         />
       )}
 
+      {modal.tipo === "robotica" && (
+        <RoboticaModal
+          usuario={modal.usuario}
+          onFechar={() => setModal({ tipo: "fechado" })}
+          onSalvo={async (resultado) => {
+            setModal({ tipo: "fechado" });
+            await recarregar();
+            if (!resultado) {
+              mostrarMensagem(`${modal.usuario.nome} saiu da robótica.`, "sucesso");
+            } else if (resultado.horario) {
+              mostrarMensagem(
+                `${modal.usuario.nome} ficou em Sexta ${labelHorarioRobotica(resultado.horario)} (${labelOrigemRobotica(resultado.origem)}).`,
+                "sucesso",
+              );
+            } else {
+              mostrarMensagem(`Nenhum horário de robótica com vaga disponível pra ${modal.usuario.nome}.`);
+            }
+          }}
+        />
+      )}
+
       <ImportarPlanilhaModal
         aberto={modal.tipo === "importar"}
         onFechar={() => setModal({ tipo: "fechado" })}
@@ -239,6 +293,8 @@ function NovoUsuarioModal({
   const [eAdmin, setEAdmin] = useState(false);
   const [dia1, setDia1] = useState<DiaSemana | "">("");
   const [dia2, setDia2] = useState<DiaSemana | "">("");
+  const [interesseRobotica, setInteresseRobotica] = useState(false);
+  const [horarioRobotica, setHorarioRobotica] = useState<HorarioRobotica | "">("");
   const [erro, setErro] = useState<string | null>(null);
 
   function limparEFechar() {
@@ -249,6 +305,8 @@ function NovoUsuarioModal({
     setEAdmin(false);
     setDia1("");
     setDia2("");
+    setInteresseRobotica(false);
+    setHorarioRobotica("");
     setErro(null);
     onFechar();
   }
@@ -265,12 +323,20 @@ function NovoUsuarioModal({
       setErro("A 1ª e a 2ª opção de dia devem ser diferentes.");
       return;
     }
+    if (interesseRobotica && !horarioRobotica) {
+      setErro("Selecione o horário de robótica pedido.");
+      return;
+    }
 
     const corpo: Record<string, unknown> = { nome, email, rgm, eAdmin };
     if (senha) corpo.senha = senha;
     if (dia1 && dia2) {
       corpo.diaPedido1 = dia1;
       corpo.diaPedido2 = dia2;
+    }
+    if (interesseRobotica) {
+      corpo.interesseRobotica = true;
+      corpo.horarioRoboticaPedido = horarioRobotica;
     }
 
     try {
@@ -304,6 +370,26 @@ function NovoUsuarioModal({
             <SelectDiaSemana value={dia2} onChange={setDia2} placeholder="-- não definir --" />
           </div>
         </div>
+        <label className="flex items-center gap-2 text-xs text-gray-300">
+          <input
+            type="checkbox"
+            checked={interesseRobotica}
+            onChange={(e) => setInteresseRobotica(e.target.checked)}
+            className="rounded border-purple-400/40 bg-black"
+          />
+          Tem interesse em participar da robótica
+        </label>
+        {interesseRobotica && (
+          <div>
+            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Horário de robótica pedido</label>
+            <SelectHorarioRobotica
+              value={horarioRobotica}
+              onChange={setHorarioRobotica}
+              placeholder="-- selecione --"
+              className="bg-black border border-purple-400/40 text-purple-300 text-sm rounded block w-full p-2"
+            />
+          </div>
+        )}
         <label className="flex items-center gap-2 text-xs text-gray-300 mt-1">
           <input
             type="checkbox"
@@ -486,6 +572,89 @@ function TrocarDiasModal({
   );
 }
 
+// ---------- Robótica ----------
+
+function RoboticaModal({
+  usuario,
+  onFechar,
+  onSalvo,
+}: {
+  usuario: Usuario;
+  onFechar: () => void;
+  onSalvo: (resultado: ResultadoAlocacaoRobotica | null) => void;
+}) {
+  const [interesse, setInteresse] = useState(usuario.interesseRobotica);
+  const [horario, setHorario] = useState<HorarioRobotica | "">(usuario.horarioRoboticaPedido ?? "");
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function salvar(evento: FormEvent) {
+    evento.preventDefault();
+    setErro(null);
+
+    if (interesse && !horario) {
+      setErro("Selecione o horário pedido.");
+      return;
+    }
+
+    try {
+      const resposta = await api.put<{ usuario: Usuario; resultado: ResultadoAlocacaoRobotica | null }>(
+        `/usuarios/${usuario.uuid}/robotica`,
+        { interesse, horarioPedido: interesse ? horario : undefined },
+      );
+      onSalvo(resposta.resultado);
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : "Falha ao salvar robótica.");
+    }
+  }
+
+  return (
+    <Modal aberto onFechar={onFechar} titulo={`Robótica — ${usuario.nome}`} corTitulo="text-purple-300">
+      {erro && <div className="text-red-400 text-xs mb-2">{erro}</div>}
+      <p className="text-xs text-gray-400 mb-3">
+        Robótica acontece toda sexta-feira. Se o horário pedido estiver cheio, o sistema realoca
+        automaticamente pro horário com mais vagas.
+      </p>
+      <form onSubmit={salvar} className="flex flex-col gap-3">
+        <label className="flex items-center gap-2 text-xs text-gray-300">
+          <input
+            type="checkbox"
+            checked={interesse}
+            onChange={(e) => setInteresse(e.target.checked)}
+            className="rounded border-purple-400/40 bg-black"
+          />
+          Tem interesse em participar da robótica
+        </label>
+        {interesse && (
+          <div>
+            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Horário pedido *</label>
+            <SelectHorarioRobotica
+              value={horario}
+              onChange={setHorario}
+              placeholder="-- selecione --"
+              className="bg-black border border-purple-400/40 text-purple-300 text-sm rounded block w-full p-2"
+            />
+          </div>
+        )}
+        <div className="flex gap-2 mt-2">
+          <button
+            type="submit"
+            className="flex-1 bg-purple-500/20 text-purple-300 border border-purple-400 hover:bg-purple-400 hover:text-black uppercase text-xs tracking-widest py-2 transition-colors rounded"
+          >
+            💾 Salvar
+          </button>
+          <button
+            type="button"
+            onClick={onFechar}
+            className="flex-1 bg-gray-800 text-gray-400 border border-gray-600 hover:bg-gray-700 uppercase text-xs tracking-widest py-2 transition-colors rounded"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 // ---------- Importar Planilha ----------
 
 function ImportarPlanilhaModal({
@@ -606,12 +775,13 @@ function RelatorioImportacaoModal({
               <th className="px-2 py-1.5">RGM</th>
               <th className="px-2 py-1.5">Opções pedidas</th>
               <th className="px-2 py-1.5">Dia final</th>
+              <th className="px-2 py-1.5">Robótica</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-cyan/10">
             {resultado.relatorio.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-2 py-3 text-center text-gray-500">
+                <td colSpan={5} className="px-2 py-3 text-center text-gray-500">
                   Nenhum usuário novo importado.
                 </td>
               </tr>
@@ -631,6 +801,20 @@ function RelatorioImportacaoModal({
                       </>
                     ) : (
                       <span className="text-red-400">sem vaga</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-xs">
+                    {item.interesseRobotica ? (
+                      item.horarioRobotica ? (
+                        <>
+                          Sex {labelHorarioRobotica(item.horarioRobotica)}{" "}
+                          <span className="text-gray-500">({labelOrigemRobotica(item.origemRobotica)})</span>
+                        </>
+                      ) : (
+                        <span className="text-red-400">sem vaga</span>
+                      )
+                    ) : (
+                      <span className="text-gray-600">—</span>
                     )}
                   </td>
                 </tr>

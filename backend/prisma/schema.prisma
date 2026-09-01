@@ -28,30 +28,55 @@ enum OrigemDiaAula {
   REALOCADO
 }
 
+// Horarios disponiveis pra robotica. Robotica so acontece as sextas-feiras
+// (dia exclusivo pra ela) - o aluno escolhe so 1 horario preferido (sem
+// 2a opcao, diferente do sistema de dias).
+enum HorarioRobotica {
+  H13
+  H14
+  H15
+  H16
+}
+
+// De onde veio o horario final de robotica: o horario pedido, ou uma
+// realocacao (quando o pedido estava cheio).
+enum OrigemHorarioRobotica {
+  PEDIDO
+  REALOCADO
+}
+
 // Tabela "Usuario" do diagrama. Campo Email foi adicionado (nao existia no
 // diagrama original) pois o login exige o email academico do aluno.
 // O aluno pede 2 dias (1a e 2a opcao) na planilha, mas fica matriculado em
 // apenas 1 dia final (diaAula): tenta a 1a opcao, senao a 2a, senao realoca
-// pra qualquer outro dia com vaga.
+// pra qualquer outro dia com vaga. Robotica e opcional e separada: 1
+// horario pedido, 1 horario final (mesma logica de capacidade/realocacao,
+// so que sem 2a opcao).
 model Usuario {
-  uuid                   String         @id @default(uuid())
+  uuid                   String                 @id @default(uuid())
   nome                   String
-  email                  String         @unique
-  rgm                    String         @unique
+  email                  String                 @unique
+  rgm                    String                 @unique
   senha                  String
-  senhaAlterada          Boolean        @default(false) @map("senha_alterada")
-  resetSenhaSolicitado   Boolean        @default(false) @map("reset_senha_solicitado")
-  resetSenhaSolicitadoEm DateTime?      @map("reset_senha_solicitado_em")
-  diaPedido1             DiaSemana?     @map("dia_pedido_1")
-  diaPedido2             DiaSemana?     @map("dia_pedido_2")
-  diaAula                DiaSemana?     @map("dia_aula")
-  origemDiaAula          OrigemDiaAula? @map("origem_dia_aula")
-  frequencia             Int            @default(0)
-  eAdmin                 Boolean        @default(false) @map("e_admin")
-  dtaCriacao             DateTime       @default(now()) @map("dta_criacao")
-  dtaAtualizacao         DateTime       @updatedAt @map("dta_atualizacao")
+  senhaAlterada          Boolean                @default(false) @map("senha_alterada")
+  resetSenhaSolicitado   Boolean                @default(false) @map("reset_senha_solicitado")
+  resetSenhaSolicitadoEm DateTime?              @map("reset_senha_solicitado_em")
+  diaPedido1             DiaSemana?             @map("dia_pedido_1")
+  diaPedido2             DiaSemana?             @map("dia_pedido_2")
+  diaAula                DiaSemana?             @map("dia_aula")
+  origemDiaAula          OrigemDiaAula?         @map("origem_dia_aula")
+  frequencia             Int                    @default(0)
+  interesseRobotica      Boolean                @default(false) @map("interesse_robotica")
+  horarioRoboticaPedido  HorarioRobotica?       @map("horario_robotica_pedido")
+  horarioRobotica        HorarioRobotica?       @map("horario_robotica")
+  origemHorarioRobotica  OrigemHorarioRobotica? @map("origem_horario_robotica")
+  frequenciaRobotica     Int                    @default(0) @map("frequencia_robotica")
+  eAdmin                 Boolean                @default(false) @map("e_admin")
+  dtaCriacao             DateTime               @default(now()) @map("dta_criacao")
+  dtaAtualizacao         DateTime               @updatedAt @map("dta_atualizacao")
 
-  presencas Presenca[]
+  presencas         Presenca[]
+  presencasRobotica PresencaRobotica[]
 
   @@map("usuario")
 }
@@ -88,6 +113,38 @@ model Presenca {
 
   @@unique([aulaUuid, usuarioUuid])
   @@map("presenca")
+}
+
+// Trilha paralela de "Aula" pra robotica: mesma ideia (QR code, presenca,
+// finalizacao), mas agrupada por horario em vez de dia da semana. Sempre
+// numa sexta-feira (dia exclusivo pra robotica).
+model AulaRobotica {
+  uuid           String          @id @default(uuid())
+  dataAula       DateTime        @map("data_aula")
+  horario        HorarioRobotica
+  qrCodePresenca String          @unique @map("qr_code_presenca")
+  qtdAluno       Int             @default(0) @map("qtd_aluno")
+  qtdPresenca    Int             @default(0) @map("qtd_presenca")
+  finalizada     Boolean         @default(false)
+  dtaCriacao     DateTime        @default(now()) @map("dta_criacao")
+  dtaAtualizacao DateTime        @updatedAt @map("dta_atualizacao")
+
+  presencas PresencaRobotica[]
+
+  @@map("aula_robotica")
+}
+
+// Presenca em uma aula de robotica (equivalente a "Presenca" das aulas normais).
+model PresencaRobotica {
+  uuid             String       @id @default(uuid())
+  aulaRoboticaUuid String       @map("aula_robotica_uuid")
+  aulaRobotica     AulaRobotica @relation(fields: [aulaRoboticaUuid], references: [uuid], onDelete: Cascade)
+  usuarioUuid      String       @map("usuario_uuid")
+  usuario          Usuario      @relation(fields: [usuarioUuid], references: [uuid], onDelete: Cascade)
+  marcadoEm        DateTime     @default(now()) @map("marcado_em")
+
+  @@unique([aulaRoboticaUuid, usuarioUuid])
+  @@map("presenca_robotica")
 }
 
 // Tabela "Doacao" do diagrama.

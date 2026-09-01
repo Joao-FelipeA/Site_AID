@@ -19,5 +19,6 @@ usuariosRouter.post("/", exigirAdmin, asyncHandler(usuariosController.criar));
 usuariosRouter.put("/:uuid", exigirAdmin, asyncHandler(usuariosController.atualizar));
 usuariosRouter.delete("/:uuid", exigirAdmin, asyncHandler(usuariosController.remover));
 usuariosRouter.put("/:uuid/dias-aula", exigirAdmin, asyncHandler(usuariosController.substituirDia));
+usuariosRouter.put("/:uuid/robotica", exigirAdmin, asyncHandler(usuariosController.substituirRobotica));
 usuariosRouter.post("/:uuid/resetar-senha", exigirAdmin, asyncHandler(usuariosController.resetarSenha));
 usuariosRouter.post("/importar", exigirAdmin, asyncHandler(usuariosController.importar));

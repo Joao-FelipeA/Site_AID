@@ -36,9 +36,15 @@ Duas coisas separadas:
 direto (export CSV do Google Sheets), sem credencial nenhuma. O admin cola
 o ID ou o link da planilha no painel a cada importacao. A planilha precisa
 estar compartilhada como "Qualquer pessoa com o link" (Leitor). Colunas:
-`Nome | Email | RGM | Dia1 | Dia2` a partir da linha 2 (`Dia1`/`Dia2`
-aceitam texto livre como "Segunda-Feira", "terca", "QUI" etc. e sao as
-duas opcoes de dia do aluno, nao os dias finais - ver regra abaixo).
+`Nome | Email | RGM | Dia1 | Dia2 | InteresseRobotica | HorarioRobotica`
+a partir da linha 2 (`Dia1`/`Dia2` aceitam texto livre como
+"Segunda-Feira", "terca", "QUI" etc. e sao as duas opcoes de dia do
+aluno, nao os dias finais - ver regra abaixo; sexta nao e mais uma opcao
+valida). As 2 ultimas colunas sao opcionais e independentes das demais:
+`InteresseRobotica` aceita "sim"/"yes"/"true"/"1" (qualquer outra coisa,
+incluindo vazio, conta como sem interesse - e nesse caso o valor de
+`HorarioRobotica` e ignorado, mesmo que esteja preenchido);
+`HorarioRobotica` aceita texto livre tipo "14:00", "14h" ou "H14".
 
 **Exportar doacoes/frequencia** (planilhas privadas, escritas pelo sistema)
 precisam de uma conta de servico:
@@ -60,13 +66,26 @@ precisam de uma conta de servico:
   importacao **substitui todos os alunos**: apaga todos os usuarios
   nao-admin e cria de novo a partir da planilha (idempotente por design -
   reflete sempre o estado atual da planilha, nao acumula).
-- **Capacidade por dia, 1 dia final por aluno**: cada dia util (Seg-Sex)
-  comporta no maximo `CAPACIDADE_MAXIMA_POR_DIA` (padrao 11) alunos. Cada
+- **Capacidade por dia, 1 dia final por aluno**: cada dia util (Seg-Qui;
+  sexta e exclusiva para robotica, nao entra na alocacao de aula normal)
+  comporta no maximo `CAPACIDADE_MAXIMA_POR_DIA` (padrao 15) alunos. Cada
   aluno pede 2 opcoes de dia na planilha (Dia1, Dia2) mas fica matriculado
   em UM UNICO dia final: tenta a 1a opcao, senao a 2a, senao realoca pra
   qualquer outro dia com vaga. O resultado da importacao traz um
   relatorio opcoes-pedidas-vs-dia-final por aluno
   (`src/services/alocacaoDias.ts`).
+- **Robotica (opcional, exclusiva de sexta-feira)**: o aluno indica
+  interesse e pede 1 horario entre 13h/14h/15h/16h. Mesma logica de
+  capacidade/realocacao dos dias normais (`CAPACIDADE_MAXIMA_ROBOTICA`,
+  padrao 15, cai pro valor de `CAPACIDADE_MAXIMA_POR_DIA` se nao
+  definida), so que com 1 unica opcao em vez de 2
+  (`src/services/alocacaoRobotica.ts`). Sem interesse, os campos de
+  robotica ficam null e o aluno nao aparece em nenhum horario. Um aluno
+  pode desistir/entrar depois via `PUT /usuarios/:uuid/robotica`.
+  Aulas de robotica (`aula_robotica`) so podem ser criadas numa data que
+  caia numa sexta-feira; tem QR code, presenca e frequencia proprios,
+  espelhando o fluxo de `aula` mas sem sincronizar planilha (a robotica
+  nao tem planilha de frequencia dedicada).
 - **QR code por aula**: `POST /aulas` cria uma aula para uma data
   especifica (o dia da semana e derivado da data). `GET /aulas/:uuid/qrcode`
   retorna o QR code (PNG base64) que os alunos escaneiam para chamar
@@ -95,6 +114,7 @@ precisam de uma conta de servico:
 | GET/POST | /usuarios | admin | listar / criar usuario |
 | GET/PUT/DELETE | /usuarios/:uuid | admin | detalhe / editar / remover |
 | PUT | /usuarios/:uuid/dias-aula | admin | trocar o dia de aula do aluno (recebe as 2 opcoes) |
+| PUT | /usuarios/:uuid/robotica | admin | trocar interesse/horario de robotica do aluno |
 | POST | /usuarios/importar | admin | substitui todos os alunos pelos da planilha publica (`spreadsheetIdOuUrl`) |
 | GET/POST | /aulas | autenticado / admin | listar / criar aula |
 | GET/PUT/DELETE | /aulas/:uuid | autenticado / admin | detalhe / editar / remover |
@@ -102,6 +122,11 @@ precisam de uma conta de servico:
 | POST | /aulas/:uuid/presenca | autenticado | aluno marca presenca via QR |
 | POST | /aulas/:uuid/finalizar | admin | fecha a aula e sincroniza frequencia |
 | POST | /aulas/sincronizar-frequencia | admin | forca resincronizar a planilha de frequencia sem finalizar aula |
+| GET/POST | /aulas-robotica | autenticado / admin | listar / criar aula de robotica (data precisa ser sexta) |
+| GET/PUT/DELETE | /aulas-robotica/:uuid | autenticado / admin | detalhe / editar / remover |
+| GET | /aulas-robotica/:uuid/qrcode | admin | gerar QR code da aula de robotica |
+| POST | /aulas-robotica/:uuid/presenca | autenticado | aluno marca presenca via QR |
+| POST | /aulas-robotica/:uuid/finalizar | admin | fecha a aula de robotica |
 | POST | /doacoes | publico | criar doacao + materiais (sem login) |
 | GET | /doacoes | autenticado | listar doacoes |
 | GET/PUT/DELETE | /doacoes/:uuid | autenticado | detalhe / editar / remover |

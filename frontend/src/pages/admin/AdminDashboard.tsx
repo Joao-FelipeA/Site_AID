@@ -3,11 +3,12 @@ import { Layout } from "../../components/Layout";
 import { Banner } from "../../components/Banner";
 import { UsuariosTab } from "./UsuariosTab";
 import { AulasTab } from "./AulasTab";
+import { AulaRoboticaTab } from "./AulaRoboticaTab";
 import { DoacoesTab } from "./DoacoesTab";
 import { api, ApiError } from "../../lib/api";
 import type { Usuario } from "../../lib/types";
 
-type Aba = "usuarios" | "aulas" | "doacoes";
+type Aba = "usuarios" | "aulas" | "robotica" | "doacoes";
 export type MostrarMensagem = (texto: string, tipo?: "erro" | "sucesso") => void;
 
 export function AdminDashboard() {
@@ -56,6 +57,9 @@ export function AdminDashboard() {
           <TabButton ativo={aba === "aulas"} onClick={() => setAba("aulas")}>
             Aulas
           </TabButton>
+          <TabButton ativo={aba === "robotica"} onClick={() => setAba("robotica")}>
+            Robótica
+          </TabButton>
           <TabButton ativo={aba === "doacoes"} onClick={() => setAba("doacoes")}>
             Doações
           </TabButton>
@@ -65,6 +69,7 @@ export function AdminDashboard() {
           <UsuariosTab usuarios={usuarios} recarregar={recarregarUsuarios} mostrarMensagem={mostrarMensagem} />
         )}
         {aba === "aulas" && <AulasTab mostrarMensagem={mostrarMensagem} />}
+        {aba === "robotica" && <AulaRoboticaTab mostrarMensagem={mostrarMensagem} />}
         {aba === "doacoes" && <DoacoesTab mostrarMensagem={mostrarMensagem} />}
       </div>
     </Layout>
