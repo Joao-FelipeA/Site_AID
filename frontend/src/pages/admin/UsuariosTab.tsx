@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Modal } from "../../components/Modal";
 import { SelectDiaSemana } from "../../components/SelectDiaSemana";
 import { SelectHorarioRobotica } from "../../components/SelectHorarioRobotica";
 import { api, ApiError } from "../../lib/api";
-import { formatarData, labelDiaSemana, labelOrigemDiaAula } from "../../lib/diasSemana";
-import { labelHorarioRobotica, labelOrigemRobotica } from "../../lib/horarioRobotica";
+import { ORDEM_DIAS_SEMANA, formatarData, labelDiaSemana, labelOrigemDiaAula } from "../../lib/diasSemana";
+import { ORDEM_HORARIOS_ROBOTICA, labelHorarioRobotica, labelOrigemRobotica } from "../../lib/horarioRobotica";
 import type {
   DiaSemana,
   HorarioRobotica,
@@ -30,8 +30,43 @@ type EstadoModal =
   | { tipo: "importar" }
   | { tipo: "relatorio-importacao"; resultado: ResultadoImportacao };
 
+type ColunaOrdenacao = "dia" | "robotica";
+
+function indiceOrdenacao(usuario: Usuario, coluna: ColunaOrdenacao): number {
+  if (coluna === "dia") {
+    const indice = usuario.diaAula ? ORDEM_DIAS_SEMANA.indexOf(usuario.diaAula) : -1;
+    return indice === -1 ? Number.POSITIVE_INFINITY : indice;
+  }
+  const indice =
+    usuario.interesseRobotica && usuario.horarioRobotica
+      ? ORDEM_HORARIOS_ROBOTICA.indexOf(usuario.horarioRobotica)
+      : -1;
+  return indice === -1 ? Number.POSITIVE_INFINITY : indice;
+}
+
 export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
   const [modal, setModal] = useState<EstadoModal>({ tipo: "fechado" });
+  const [ordenarPor, setOrdenarPor] = useState<ColunaOrdenacao | null>(null);
+  const [ordemAscendente, setOrdemAscendente] = useState(true);
+
+  function alternarOrdenacao(coluna: ColunaOrdenacao) {
+    if (ordenarPor === coluna) {
+      setOrdemAscendente((atual) => !atual);
+    } else {
+      setOrdenarPor(coluna);
+      setOrdemAscendente(true);
+    }
+  }
+
+  const usuariosOrdenados = useMemo(() => {
+    if (!ordenarPor) return usuarios;
+    const copia = [...usuarios];
+    copia.sort((a, b) => {
+      const diferenca = indiceOrdenacao(a, ordenarPor) - indiceOrdenacao(b, ordenarPor);
+      return ordemAscendente ? diferenca : -diferenca;
+    });
+    return copia;
+  }, [usuarios, ordenarPor, ordemAscendente]);
 
   async function resetarSenha(usuario: Usuario) {
     if (!confirm(`Redefinir a senha de ${usuario.nome} para a senha padrão (3 letras do nome + RGM)?`)) return;
@@ -85,8 +120,20 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
             <tr>
               <th className="px-4 py-3">Nome</th>
               <th className="px-4 py-3">RGM</th>
-              <th className="px-4 py-3">Dia</th>
-              <th className="px-4 py-3">Robótica</th>
+              <th
+                className="px-4 py-3 cursor-pointer select-none hover:text-white transition-colors"
+                onClick={() => alternarOrdenacao("dia")}
+                title="Ordenar por dia da semana"
+              >
+                Dia{ordenarPor === "dia" ? (ordemAscendente ? " ▲" : " ▼") : ""}
+              </th>
+              <th
+                className="px-4 py-3 cursor-pointer select-none hover:text-white transition-colors"
+                onClick={() => alternarOrdenacao("robotica")}
+                title="Ordenar por horário de robótica"
+              >
+                Robótica{ordenarPor === "robotica" ? (ordemAscendente ? " ▲" : " ▼") : ""}
+              </th>
               <th className="px-4 py-3">Freq.</th>
               <th className="px-4 py-3">Perfil</th>
               <th className="px-4 py-3 text-right">Ações</th>
@@ -100,7 +147,7 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
                 </td>
               </tr>
             ) : (
-              usuarios.map((usuario) => (
+              usuariosOrdenados.map((usuario) => (
                 <tr key={usuario.uuid} className="hover:bg-cyan/5 transition-colors">
                   <td className="px-4 py-3 font-mono font-bold">
                     {usuario.nome}
@@ -121,7 +168,7 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
                   <td className="px-4 py-2">
                     {usuario.diaAula ? (
                       <span
-                        className="text-[10px] bg-cyan/10 border border-cyan/40 text-cyan px-1.5 py-0.5 rounded"
+                        className="inline-block whitespace-nowrap text-[10px] bg-cyan/10 border border-cyan/40 text-cyan px-1.5 py-0.5 rounded"
                         title={usuario.origemDiaAula ? labelOrigemDiaAula(usuario.origemDiaAula) : undefined}
                       >
                         {labelDiaSemana(usuario.diaAula)}
@@ -134,7 +181,7 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
                     {usuario.interesseRobotica ? (
                       usuario.horarioRobotica ? (
                         <span
-                          className="text-[10px] bg-purple-500/10 border border-purple-400/40 text-purple-300 px-1.5 py-0.5 rounded"
+                          className="inline-block whitespace-nowrap text-[10px] bg-purple-500/10 border border-purple-400/40 text-purple-300 px-1.5 py-0.5 rounded"
                           title={usuario.origemHorarioRobotica ? labelOrigemRobotica(usuario.origemHorarioRobotica) : undefined}
                         >
                           Sex {labelHorarioRobotica(usuario.horarioRobotica)}
