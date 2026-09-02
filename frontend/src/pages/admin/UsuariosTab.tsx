@@ -59,9 +59,12 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
   }
 
   const usuariosOrdenados = useMemo(() => {
-    if (!ordenarPor) return usuarios;
     const copia = [...usuarios];
     copia.sort((a, b) => {
+      // Admins sempre no topo, independente da ordenacao de coluna escolhida.
+      const diferencaAdmin = Number(b.eAdmin) - Number(a.eAdmin);
+      if (diferencaAdmin !== 0) return diferencaAdmin;
+      if (!ordenarPor) return 0;
       const diferenca = indiceOrdenacao(a, ordenarPor) - indiceOrdenacao(b, ordenarPor);
       return ordemAscendente ? diferenca : -diferenca;
     });
