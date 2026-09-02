@@ -56,7 +56,7 @@ export function FaleConosco() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xs uppercase tracking-widest text-gray-500 mb-1">Horário de Atendimento</span>
-                <span className="text-white font-medium">Segunda a Sexta, 14h às 17h</span>
+                <span className="text-white font-medium">Segunda a Sexta, 14:30h às 17h</span>
               </div>
             </div>
           </div>
