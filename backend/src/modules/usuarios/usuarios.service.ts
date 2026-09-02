@@ -372,39 +372,53 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
   );
   const resultadoRoboticaPorRgm = new Map(resultadosRobotica.map((r) => [r.chave, r]));
 
-  const relatorio: RelatorioImportacaoUsuario[] = [];
+  // Hash de senha (bcrypt) e demais dados sao computados FORA da transacao:
+  // bcrypt e lento (~50-100ms cada) e, com dezenas de alunos, rodar isso
+  // sequencialmente dentro de uma transacao interativa do Prisma estoura o
+  // timeout padrao (5s), principalmente com latencia de rede ate o banco.
+  const senhasPorRgm = new Map(
+    await Promise.all(
+      novos.map(
+        async (novo) => [novo.rgm, await hashSenha(gerarSenhaPadrao(novo.nome, novo.rgm))] as const,
+      ),
+    ),
+  );
 
+  const relatorio: RelatorioImportacaoUsuario[] = novos.map((novo) => {
+    const resultado = resultadoPorRgm.get(novo.rgm);
+    const resultadoRobotica = resultadoRoboticaPorRgm.get(novo.rgm);
+    return {
+      nome: novo.nome,
+      rgm: novo.rgm,
+      diaPedido1: novo.diaPedido1,
+      diaPedido2: novo.diaPedido2,
+      diaAula: resultado?.diaAula ?? null,
+      origem: resultado?.origem ?? null,
+      interesseRobotica: !!novo.horarioRoboticaPedido,
+      horarioRobotica: resultadoRobotica?.horario ?? null,
+      origemRobotica: resultadoRobotica?.origem ?? null,
+    };
+  });
+
+  const dadosParaCriar = novos.map((novo) => {
+    const resultado = resultadoPorRgm.get(novo.rgm);
+    const resultadoRobotica = resultadoRoboticaPorRgm.get(novo.rgm);
+    return {
+      nome: novo.nome,
+      rgm: novo.rgm,
+      senha: senhasPorRgm.get(novo.rgm) as string,
+      ...(resultado ? dadosDoResultadoAlocacao(resultado) : {}),
+      ...(resultadoRobotica ? dadosDoResultadoRobotica(resultadoRobotica) : {}),
+    };
+  });
+
+  // Dentro da transacao so sobra 1 delete + 1 insert em lote (bem rapido),
+  // em vez de N creates sequenciais.
   const totalApagados = await prisma.$transaction(async (tx) => {
     const apagados = await tx.usuario.deleteMany({ where: { eAdmin: false } });
-
-    for (const novo of novos) {
-      const senhaHash = await hashSenha(gerarSenhaPadrao(novo.nome, novo.rgm));
-      const resultado = resultadoPorRgm.get(novo.rgm);
-      const resultadoRobotica = resultadoRoboticaPorRgm.get(novo.rgm);
-
-      await tx.usuario.create({
-        data: {
-          nome: novo.nome,
-          rgm: novo.rgm,
-          senha: senhaHash,
-          ...(resultado ? dadosDoResultadoAlocacao(resultado) : {}),
-          ...(resultadoRobotica ? dadosDoResultadoRobotica(resultadoRobotica) : {}),
-        },
-      });
-
-      relatorio.push({
-        nome: novo.nome,
-        rgm: novo.rgm,
-        diaPedido1: novo.diaPedido1,
-        diaPedido2: novo.diaPedido2,
-        diaAula: resultado?.diaAula ?? null,
-        origem: resultado?.origem ?? null,
-        interesseRobotica: !!novo.horarioRoboticaPedido,
-        horarioRobotica: resultadoRobotica?.horario ?? null,
-        origemRobotica: resultadoRobotica?.origem ?? null,
-      });
+    if (dadosParaCriar.length > 0) {
+      await tx.usuario.createMany({ data: dadosParaCriar });
     }
-
     return apagados.count;
   });
 
