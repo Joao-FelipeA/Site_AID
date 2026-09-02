@@ -80,7 +80,7 @@ export const substituirRoboticaSchema = z
 export type SubstituirRoboticaInput = z.infer<typeof substituirRoboticaSchema>;
 
 export const loginSchema = z.object({
-  email: z.string().trim().email("Email invalido."),
+  rgm: z.string().trim().min(1, "RGM e obrigatorio."),
   senha: z.string().min(1, "Senha e obrigatoria."),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -92,7 +92,7 @@ export const alterarSenhaSchema = z.object({
 export type AlterarSenhaInput = z.infer<typeof alterarSenhaSchema>;
 
 export const esqueciSenhaSchema = z.object({
-  email: z.string().trim().email("Email invalido."),
+  rgm: z.string().trim().min(1, "RGM e obrigatorio."),
 });
 export type EsqueciSenhaInput = z.infer<typeof esqueciSenhaSchema>;
 

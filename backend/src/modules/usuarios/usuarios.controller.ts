@@ -67,8 +67,8 @@ export async function substituirRobotica(req: Request, res: Response): Promise<v
 }
 
 export async function login(req: Request, res: Response): Promise<void> {
-  const { email, senha } = loginSchema.parse(req.body);
-  const { token, usuario } = await usuariosService.login(email, senha);
+  const { rgm, senha } = loginSchema.parse(req.body);
+  const { token, usuario } = await usuariosService.login(rgm, senha);
   res.json({ token, usuario: sanitizar(usuario) });
 }
 
@@ -80,10 +80,10 @@ export async function alterarSenha(req: Request, res: Response): Promise<void> {
 }
 
 export async function esqueciSenha(req: Request, res: Response): Promise<void> {
-  const { email } = esqueciSenhaSchema.parse(req.body);
-  await usuariosService.solicitarResetSenha(email);
+  const { rgm } = esqueciSenhaSchema.parse(req.body);
+  await usuariosService.solicitarResetSenha(rgm);
   res.json({
-    mensagem: "Se esse email estiver cadastrado, um administrador vai receber sua solicitação de redefinição de senha.",
+    mensagem: "Se esse RGM estiver cadastrado, um administrador vai receber sua solicitação de redefinição de senha.",
   });
 }
 

@@ -12,13 +12,13 @@ export function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  const [email, setEmail] = useState("");
+  const [rgm, setRgm] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState<{ texto: string; tipo: "erro" | "sucesso" } | null>(null);
 
-  const [emailReset, setEmailReset] = useState("");
+  const [rgmReset, setRgmReset] = useState("");
   const [carregandoReset, setCarregandoReset] = useState(false);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export function Login() {
     try {
       const { token, usuario: usuarioLogado } = await api.post<{ token: string; usuario: Usuario }>(
         "/auth/login",
-        { email, senha },
+        { rgm, senha },
       );
       login(token, usuarioLogado);
 
@@ -59,9 +59,9 @@ export function Login() {
     setCarregandoReset(true);
 
     try {
-      const resposta = await api.post<{ mensagem: string }>("/auth/esqueci-senha", { email: emailReset });
+      const resposta = await api.post<{ mensagem: string }>("/auth/esqueci-senha", { rgm: rgmReset });
       setMensagem({ texto: resposta.mensagem, tipo: "sucesso" });
-      setEmailReset("");
+      setRgmReset("");
     } catch (erro) {
       setMensagem({ texto: erro instanceof ApiError ? erro.message : "Falha ao enviar a solicitação.", tipo: "erro" });
     } finally {
@@ -80,8 +80,7 @@ export function Login() {
           </div>
           <h2 className="font-body text-xl font-semibold text-white tracking-wide mb-1">Confirme sua presença</h2>
           <p className="font-body text-[0.8rem] text-gray-400 max-w-[85%] leading-relaxed font-light text-center">
-            Entre com seu email acadêmico e senha para registrar presença e acompanhar seu histórico de
-            frequência.
+            Entre com seu RGM e senha para registrar presença e acompanhar seu histórico de frequência.
           </p>
         </div>
 
@@ -97,17 +96,17 @@ export function Login() {
           </summary>
           <div className="p-4 pt-2 flex flex-col gap-3 border-t border-cyan/10">
             <p className="text-gray-400 text-[0.7rem] font-light leading-relaxed">
-              Digite seu email acadêmico. Um administrador vai receber sua solicitação e redefinir sua senha
+              Digite seu RGM. Um administrador vai receber sua solicitação e redefinir sua senha
               manualmente.
             </p>
             <form onSubmit={solicitarReset} className="flex flex-col gap-3">
               <div className="relative w-full rounded border border-cyan/20 bg-[#040810] flex items-center px-3 py-1.5 focus-within:border-cyan focus-within:shadow-[0_0_8px_rgba(0,212,255,0.2)] transition-all">
                 <input
-                  type="email"
-                  placeholder="seu.nome@cs.unipe.edu.br"
+                  type="text"
+                  placeholder="RGM"
                   required
-                  value={emailReset}
-                  onChange={(e) => setEmailReset(e.target.value)}
+                  value={rgmReset}
+                  onChange={(e) => setRgmReset(e.target.value)}
                   className="w-full bg-transparent border-none text-gray-400 text-sm focus:outline-none focus:ring-0 p-0"
                 />
               </div>
@@ -130,22 +129,22 @@ export function Login() {
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center px-1">
                 <span className="font-body text-[0.6rem] text-gray-300 uppercase tracking-[0.15em] font-semibold">
-                  Email Acadêmico
+                  RGM
                 </span>
                 <span
                   className="material-symbols-outlined text-[12px] text-gray-500 cursor-help hover:text-cyan transition-colors"
-                  title="Seu email @cs.unipe.edu.br"
+                  title="Seu numero de RGM"
                 >
                   help_outline
                 </span>
               </div>
               <div className="relative w-full rounded-md input-glow-border bg-[#050D15] flex items-center px-3 py-2.5">
                 <input
-                  type="email"
-                  placeholder="seu.nome@cs.unipe.edu.br"
+                  type="text"
+                  placeholder="RGM"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={rgm}
+                  onChange={(e) => setRgm(e.target.value)}
                   className="w-full bg-transparent border-none text-gray-400 text-base focus:outline-none focus:ring-0 p-0"
                 />
               </div>

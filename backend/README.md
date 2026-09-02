@@ -24,8 +24,10 @@ npm run prisma:seed   # cria o primeiro administrador
 npm run dev
 ```
 
-O seed cria um admin padrao (`admin@cs.unipe.edu.br` / `admin@0000`, ou os
-valores de `SEED_ADMIN_EMAIL`/`SEED_ADMIN_SENHA` se definidos). Troque a
+O seed cria um admin padrao com RGM `0000000000` e senha `admin@0000`
+(email `admin@cs.unipe.edu.br`, ou os valores de
+`SEED_ADMIN_EMAIL`/`SEED_ADMIN_SENHA` se definidos - o RGM do seed fica
+fixo em `0000000000`). Login usa RGM + senha, nao o email. Troque a
 senha assim que possivel via `PUT /usuarios/:uuid`.
 
 ## Google Sheets
@@ -109,7 +111,8 @@ precisam de uma conta de servico:
 
 | Metodo | Rota | Acesso | Descricao |
 | --- | --- | --- | --- |
-| POST | /auth/login | publico | login (email + senha) -> JWT |
+| POST | /auth/login | publico | login (RGM + senha) -> JWT |
+| POST | /auth/esqueci-senha | publico | solicita reset de senha via RGM (fica pendente pro admin resolver) |
 | GET | /usuarios/me | autenticado | perfil proprio |
 | GET/POST | /usuarios | admin | listar / criar usuario |
 | GET/PUT/DELETE | /usuarios/:uuid | admin | detalhe / editar / remover |

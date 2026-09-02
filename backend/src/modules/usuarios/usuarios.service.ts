@@ -163,12 +163,12 @@ export function deletarUsuario(uuid: string) {
 /**
  * Registra o pedido de redefinicao de senha (sem enviar email: o sistema
  * nao tem infraestrutura de email). Fica visivel para o admin no painel,
- * que redefine manualmente. Sempre "silencioso": nao revela se o email
+ * que redefine manualmente. Sempre "silencioso": nao revela se o RGM
  * existe ou nao, pra nao vazar quais contas estao cadastradas.
  */
-export async function solicitarResetSenha(email: string): Promise<void> {
+export async function solicitarResetSenha(rgm: string): Promise<void> {
   await prisma.usuario.updateMany({
-    where: { email: email.trim().toLowerCase() },
+    where: { rgm: rgm.trim() },
     data: { resetSenhaSolicitado: true, resetSenhaSolicitadoEm: new Date() },
   });
 }
@@ -248,8 +248,8 @@ export async function substituirRobotica(uuid: string, interesse: boolean, horar
   });
 }
 
-export async function login(email: string, senhaPlana: string) {
-  const usuario = await prisma.usuario.findUnique({ where: { email: email.trim().toLowerCase() } });
+export async function login(rgm: string, senhaPlana: string) {
+  const usuario = await prisma.usuario.findUnique({ where: { rgm: rgm.trim() } });
   if (!usuario) {
     throw new AppError(401, "Credenciais invalidas.");
   }

@@ -46,7 +46,8 @@ enum OrigemHorarioRobotica {
 }
 
 // Tabela "Usuario" do diagrama. Campo Email foi adicionado (nao existia no
-// diagrama original) pois o login exige o email academico do aluno.
+// diagrama original) para contato/identificacao; o login em si usa o RGM
+// (email academico e mais propenso a erro de digitacao pelos alunos).
 // O aluno pede 2 dias (1a e 2a opcao) na planilha, mas fica matriculado em
 // apenas 1 dia final (diaAula): tenta a 1a opcao, senao a 2a, senao realoca
 // pra qualquer outro dia com vaga. Robotica e opcional e separada: 1
