@@ -9,7 +9,6 @@ export type OrigemHorarioRobotica = "PEDIDO" | "REALOCADO";
 export interface Usuario {
   uuid: string;
   nome: string;
-  email: string;
   rgm: string;
   senhaAlterada: boolean;
   resetSenhaSolicitado: boolean;
@@ -95,7 +94,6 @@ export interface ResultadoAlocacaoRobotica {
 
 export interface RelatorioImportacaoUsuario {
   nome: string;
-  email: string;
   rgm: string;
   diaPedido1: DiaSemana;
   diaPedido2: DiaSemana;

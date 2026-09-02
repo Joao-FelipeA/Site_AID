@@ -3,7 +3,6 @@ import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/appError";
 import { assinarToken } from "../../lib/jwt";
 import { compararSenha, gerarSenhaPadrao, hashSenha } from "../../lib/senha";
-import { ehEmailAcademico } from "../../utils/email";
 import { parseDiaSemana } from "../../utils/diasSemana";
 import { parseHorarioRobotica, parseInteresseRobotica } from "../../utils/horarioRobotica";
 import { baixarPlanilhaPublicaComoCsv } from "../../lib/planilhaPublica";
@@ -112,7 +111,6 @@ export async function criarUsuario(input: CriarUsuarioInput) {
     const usuario = await tx.usuario.create({
       data: {
         nome: input.nome,
-        email: input.email,
         rgm: input.rgm,
         eAdmin: input.eAdmin,
         senha: senhaHash,
@@ -128,7 +126,6 @@ export async function criarUsuario(input: CriarUsuarioInput) {
 export async function atualizarUsuario(uuid: string, input: AtualizarUsuarioInput) {
   const data: Prisma.UsuarioUpdateInput = {};
   if (input.nome !== undefined) data.nome = input.nome;
-  if (input.email !== undefined) data.email = input.email;
   if (input.rgm !== undefined) data.rgm = input.rgm;
   if (input.eAdmin !== undefined) data.eAdmin = input.eAdmin;
   if (input.senha !== undefined) {
@@ -270,7 +267,6 @@ export interface LinhaImportacaoInvalida {
 
 export interface RelatorioImportacaoUsuario {
   nome: string;
-  email: string;
   rgm: string;
   diaPedido1: DiaSemana;
   diaPedido2: DiaSemana;
@@ -290,9 +286,9 @@ export interface ResultadoImportacao {
 }
 
 /**
- * Le uma planilha publica do Google Sheets (colunas Nome | Email | RGM |
- * Dia1 | Dia2 | InteresseRobotica | HorarioRobotica, a partir da linha 2)
- * via export CSV publico, e SUBSTITUI TODOS os alunos (nao-admin) pelos da
+ * Le uma planilha publica do Google Sheets (colunas Nome | RGM | Dia1 |
+ * Dia2 | InteresseRobotica | HorarioRobotica, a partir da linha 2) via
+ * export CSV publico, e SUBSTITUI TODOS os alunos (nao-admin) pelos da
  * planilha: apaga todos e cria novos, alocando cada um em 1 dia final
  * (tenta Dia1, depois Dia2, ou realoca) e, se houver interesse em
  * robotica, em 1 horario final tambem. As 2 ultimas colunas sao opcionais:
@@ -305,7 +301,6 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
 
   const novos: {
     nome: string;
-    email: string;
     rgm: string;
     diaPedido1: DiaSemana;
     diaPedido2: DiaSemana;
@@ -313,33 +308,28 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
   }[] = [];
   const linhasInvalidas: LinhaImportacaoInvalida[] = [];
   const rgmsVistos = new Set<string>();
-  const emailsVistos = new Set<string>();
   let totalPreenchidas = 0;
 
   linhas.forEach((linha, index) => {
-    const [nome, email, rgm, dia1Texto, dia2Texto, interesseRoboticaTexto, horarioRoboticaTexto] = linha;
-    if (!nome?.trim() && !email?.trim() && !rgm?.trim()) return; // linha em branco
+    const [nome, rgm, dia1Texto, dia2Texto, interesseRoboticaTexto, horarioRoboticaTexto] = linha;
+    if (!nome?.trim() && !rgm?.trim()) return; // linha em branco
 
     totalPreenchidas += 1;
     const numeroLinha = index + 2;
 
-    if (!nome?.trim() || !email?.trim() || !rgm?.trim() || !dia1Texto?.trim() || !dia2Texto?.trim()) {
-      linhasInvalidas.push({ linha: numeroLinha, motivo: "Colunas obrigatorias ausentes (Nome, Email, RGM, Dia1, Dia2)." });
+    if (!nome?.trim() || !rgm?.trim() || !dia1Texto?.trim() || !dia2Texto?.trim()) {
+      linhasInvalidas.push({ linha: numeroLinha, motivo: "Colunas obrigatorias ausentes (Nome, RGM, Dia1, Dia2)." });
       return;
     }
 
     const rgmLimpo = rgm.trim();
-    const emailLimpo = email.trim().toLowerCase();
 
-    if (rgmsVistos.has(rgmLimpo) || emailsVistos.has(emailLimpo)) {
-      linhasInvalidas.push({ linha: numeroLinha, motivo: "RGM ou email duplicado dentro da propria planilha." });
+    if (rgmsVistos.has(rgmLimpo)) {
+      linhasInvalidas.push({ linha: numeroLinha, motivo: "RGM duplicado dentro da propria planilha." });
       return;
     }
 
     try {
-      if (!ehEmailAcademico(email)) {
-        throw new Error(`Email deve terminar com ${env.emailDominio}.`);
-      }
       const diaPedido1 = parseDiaSemana(dia1Texto);
       const diaPedido2 = parseDiaSemana(dia2Texto);
       if (diaPedido1 === DiaSemana.SEXTA || diaPedido2 === DiaSemana.SEXTA) {
@@ -361,8 +351,7 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
       }
 
       rgmsVistos.add(rgmLimpo);
-      emailsVistos.add(emailLimpo);
-      novos.push({ nome: nome.trim(), email: emailLimpo, rgm: rgmLimpo, diaPedido1, diaPedido2, horarioRoboticaPedido });
+      novos.push({ nome: nome.trim(), rgm: rgmLimpo, diaPedido1, diaPedido2, horarioRoboticaPedido });
     } catch (erro) {
       linhasInvalidas.push({ linha: numeroLinha, motivo: (erro as Error).message });
     }
@@ -396,7 +385,6 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
       await tx.usuario.create({
         data: {
           nome: novo.nome,
-          email: novo.email,
           rgm: novo.rgm,
           senha: senhaHash,
           ...(resultado ? dadosDoResultadoAlocacao(resultado) : {}),
@@ -406,7 +394,6 @@ export async function importarUsuariosDaPlanilha(spreadsheetIdOuUrl: string): Pr
 
       relatorio.push({
         nome: novo.nome,
-        email: novo.email,
         rgm: novo.rgm,
         diaPedido1: novo.diaPedido1,
         diaPedido2: novo.diaPedido2,

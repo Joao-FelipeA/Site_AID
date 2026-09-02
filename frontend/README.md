@@ -36,7 +36,7 @@ tanto no dev server quanto no preview - nao precisa de config extra tipo
 
 | Rota | Descricao |
 | --- | --- |
-| `/login` | Login (email academico + senha) |
+| `/login` | Login (RGM + senha) |
 | `/trocar-senha` | Forcado no primeiro login / senha redefinida por admin |
 | `/dashboard` | Painel do aluno: dia de aula, frequencia |
 | `/presenca-confirmar?aula=&token=` | Aberta ao escanear o QR code da aula |

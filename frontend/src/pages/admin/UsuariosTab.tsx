@@ -84,7 +84,6 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
           <thead className="bg-black/40 text-cyan uppercase text-xs tracking-widest">
             <tr>
               <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">RGM</th>
               <th className="px-4 py-3">Dia</th>
               <th className="px-4 py-3">Robótica</th>
@@ -96,7 +95,7 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
           <tbody className="divide-y divide-cyan/10">
             {usuarios.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
                   Nenhum usuário cadastrado.
                 </td>
               </tr>
@@ -118,7 +117,6 @@ export function UsuariosTab({ usuarios, recarregar, mostrarMensagem }: Props) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2">{usuario.email}</td>
                   <td className="px-4 py-2">{usuario.rgm}</td>
                   <td className="px-4 py-2">
                     {usuario.diaAula ? (
@@ -287,7 +285,6 @@ function NovoUsuarioModal({
   onCriado: () => void;
 }) {
   const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
   const [rgm, setRgm] = useState("");
   const [senha, setSenha] = useState("");
   const [eAdmin, setEAdmin] = useState(false);
@@ -299,7 +296,6 @@ function NovoUsuarioModal({
 
   function limparEFechar() {
     setNome("");
-    setEmail("");
     setRgm("");
     setSenha("");
     setEAdmin(false);
@@ -328,7 +324,7 @@ function NovoUsuarioModal({
       return;
     }
 
-    const corpo: Record<string, unknown> = { nome, email, rgm, eAdmin };
+    const corpo: Record<string, unknown> = { nome, rgm, eAdmin };
     if (senha) corpo.senha = senha;
     if (dia1 && dia2) {
       corpo.diaPedido1 = dia1;
@@ -353,7 +349,6 @@ function NovoUsuarioModal({
       {erro && <div className="text-red-400 text-xs mb-2">{erro}</div>}
       <form onSubmit={salvar} className="flex flex-col gap-3">
         <Campo label="Nome *" value={nome} onChange={setNome} required />
-        <Campo label="Email acadêmico *" value={email} onChange={setEmail} type="email" placeholder="nome@cs.unipe.edu.br" required />
         <Campo label="RGM *" value={rgm} onChange={setRgm} required />
         <Campo
           label="Senha (opcional — padrão: 3 letras do nome + @ + 4 últimos do RGM)"
@@ -431,7 +426,6 @@ function EditarUsuarioModal({
   onSalvo: () => void;
 }) {
   const [nome, setNome] = useState(usuario.nome);
-  const [email, setEmail] = useState(usuario.email);
   const [rgm, setRgm] = useState(usuario.rgm);
   const [senha, setSenha] = useState("");
   const [eAdmin, setEAdmin] = useState(usuario.eAdmin);
@@ -441,7 +435,7 @@ function EditarUsuarioModal({
     evento.preventDefault();
     setErro(null);
 
-    const corpo: Record<string, unknown> = { nome, email, rgm, eAdmin };
+    const corpo: Record<string, unknown> = { nome, rgm, eAdmin };
     if (senha) corpo.senha = senha;
 
     try {
@@ -457,7 +451,6 @@ function EditarUsuarioModal({
       {erro && <div className="text-red-400 text-xs mb-2">{erro}</div>}
       <form onSubmit={salvar} className="flex flex-col gap-3">
         <Campo label="Nome" value={nome} onChange={setNome} />
-        <Campo label="Email" value={email} onChange={setEmail} type="email" />
         <Campo label="RGM" value={rgm} onChange={setRgm} />
         <Campo label="Nova senha (deixe em branco para não alterar)" value={senha} onChange={setSenha} />
         <label className="flex items-center gap-2 text-xs text-gray-300 mt-1">

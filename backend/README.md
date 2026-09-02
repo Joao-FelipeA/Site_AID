@@ -25,9 +25,8 @@ npm run dev
 ```
 
 O seed cria um admin padrao com RGM `0000000000` e senha `admin@0000`
-(email `admin@cs.unipe.edu.br`, ou os valores de
-`SEED_ADMIN_EMAIL`/`SEED_ADMIN_SENHA` se definidos - o RGM do seed fica
-fixo em `0000000000`). Login usa RGM + senha, nao o email. Troque a
+(ou os valores de `SEED_ADMIN_RGM`/`SEED_ADMIN_SENHA` se definidos).
+Login usa RGM + senha - o sistema nao tem campo de email. Troque a
 senha assim que possivel via `PUT /usuarios/:uuid`.
 
 ## Google Sheets
@@ -38,7 +37,7 @@ Duas coisas separadas:
 direto (export CSV do Google Sheets), sem credencial nenhuma. O admin cola
 o ID ou o link da planilha no painel a cada importacao. A planilha precisa
 estar compartilhada como "Qualquer pessoa com o link" (Leitor). Colunas:
-`Nome | Email | RGM | Dia1 | Dia2 | InteresseRobotica | HorarioRobotica`
+`Nome | RGM | Dia1 | Dia2 | InteresseRobotica | HorarioRobotica`
 a partir da linha 2 (`Dia1`/`Dia2` aceitam texto livre como
 "Segunda-Feira", "terca", "QUI" etc. e sao as duas opcoes de dia do
 aluno, nao os dias finais - ver regra abaixo; sexta nao e mais uma opcao
@@ -62,12 +61,11 @@ precisam de uma conta de servico:
 ## Regras de negocio implementadas
 
 - **Sem auto-cadastro**: usuarios comuns entram via importacao de uma
-  planilha publica (`POST /usuarios/importar`, admin). Email = coluna
-  Email (validado contra `EMAIL_DOMINIO`), senha padrao = 3 primeiras
-  letras do nome + `@` + 4 ultimos digitos do RGM (hash bcrypt). Cada
-  importacao **substitui todos os alunos**: apaga todos os usuarios
-  nao-admin e cria de novo a partir da planilha (idempotente por design -
-  reflete sempre o estado atual da planilha, nao acumula).
+  planilha publica (`POST /usuarios/importar`, admin). Senha padrao = 3
+  primeiras letras do nome + `@` + 4 ultimos digitos do RGM (hash
+  bcrypt). Cada importacao **substitui todos os alunos**: apaga todos os
+  usuarios nao-admin e cria de novo a partir da planilha (idempotente por
+  design - reflete sempre o estado atual da planilha, nao acumula).
 - **Capacidade por dia, 1 dia final por aluno**: cada dia util (Seg-Qui;
   sexta e exclusiva para robotica, nao entra na alocacao de aula normal)
   comporta no maximo `CAPACIDADE_MAXIMA_POR_DIA` (padrao 15) alunos. Cada

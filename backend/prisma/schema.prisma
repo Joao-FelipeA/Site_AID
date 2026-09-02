@@ -45,9 +45,8 @@ enum OrigemHorarioRobotica {
   REALOCADO
 }
 
-// Tabela "Usuario" do diagrama. Campo Email foi adicionado (nao existia no
-// diagrama original) para contato/identificacao; o login em si usa o RGM
-// (email academico e mais propenso a erro de digitacao pelos alunos).
+// Tabela "Usuario" do diagrama. O login (e o "esqueci minha senha") usa o
+// RGM, nao email: alunos erravam com frequencia o email academico.
 // O aluno pede 2 dias (1a e 2a opcao) na planilha, mas fica matriculado em
 // apenas 1 dia final (diaAula): tenta a 1a opcao, senao a 2a, senao realoca
 // pra qualquer outro dia com vaga. Robotica e opcional e separada: 1
@@ -56,7 +55,6 @@ enum OrigemHorarioRobotica {
 model Usuario {
   uuid                   String                 @id @default(uuid())
   nome                   String
-  email                  String                 @unique
   rgm                    String                 @unique
   senha                  String
   senhaAlterada          Boolean                @default(false) @map("senha_alterada")

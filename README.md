@@ -7,10 +7,11 @@ capacidade limitada, e gestão de doações de equipamentos.
 ## Visão geral
 
 - **Usuários** não se auto-cadastram: entram por importação de uma
-  planilha pública do Google Sheets. Login é feito com **RGM** (não o
-  email, pra evitar erro de digitação) + senha. Senha padrão = 3
-  primeiras letras do nome + `@` + 4 últimos dígitos do RGM. No primeiro
-  login (ou depois de um reset), o sistema força a troca de senha.
+  planilha pública do Google Sheets. Login é feito com **RGM** + senha
+  (não há campo de email no sistema, pra evitar erro de digitação). Senha
+  padrão = 3 primeiras letras do nome + `@` + 4 últimos dígitos do RGM.
+  No primeiro login (ou depois de um reset), o sistema força a troca de
+  senha.
 - **Cada aluno fica matriculado em 1 dia da semana** (Segunda a Quinta),
   escolhido a partir de 2 opções que ele pediu na planilha: tenta a 1ª
   opção, depois a 2ª, e se as duas estiverem cheias (máx. 15 alunos/dia)
@@ -96,7 +97,7 @@ de `DATABASE_URL`. Veja `backend/.env.example` para o formato de cada uma.
 
 - **Importar alunos**: lê uma planilha **pública** direto (export CSV),
   sem credencial nenhuma — o admin cola o ID/link no painel. Colunas:
-  `Nome | Email | RGM | Dia1 | Dia2 | InteresseRobotica | HorarioRobotica`
+  `Nome | RGM | Dia1 | Dia2 | InteresseRobotica | HorarioRobotica`
   (as 2 últimas são opcionais: se ausentes/inválidas ou se
   `InteresseRobotica` não for "sim", o aluno é importado sem robótica).
 - **Exportar doações/frequência**: planilhas privadas, escritas pelo

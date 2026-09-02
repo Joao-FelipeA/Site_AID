@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { DiaSemana, HorarioRobotica } from "@prisma/client";
-import { ehEmailAcademico } from "../../utils/email";
 
 const diaSemanaEnum = z.nativeEnum(DiaSemana);
 const horarioRoboticaEnum = z.nativeEnum(HorarioRobotica);
@@ -23,11 +22,6 @@ const doisDiasPedidosSchema = z
 export const criarUsuarioSchema = z
   .object({
     nome: z.string().trim().min(1, "Nome e obrigatorio."),
-    email: z
-      .string()
-      .trim()
-      .email("Email invalido.")
-      .refine(ehEmailAcademico, "Email deve ser o email academico institucional."),
     rgm: z.string().trim().min(1, "RGM e obrigatorio."),
     eAdmin: z.boolean().optional().default(false),
     /** Se omitido, a senha padrao (3 letras do nome + 4 digitos do RGM) e usada. */
@@ -53,12 +47,6 @@ export type CriarUsuarioInput = z.infer<typeof criarUsuarioSchema>;
 
 export const atualizarUsuarioSchema = z.object({
   nome: z.string().trim().min(1).optional(),
-  email: z
-    .string()
-    .trim()
-    .email("Email invalido.")
-    .refine(ehEmailAcademico, "Email deve ser o email academico institucional.")
-    .optional(),
   rgm: z.string().trim().min(1).optional(),
   eAdmin: z.boolean().optional(),
   senha: z.string().min(4).optional(),
