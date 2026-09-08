@@ -49,6 +49,11 @@ export async function anexarValores(
   });
 }
 
+export async function limparValores(spreadsheetId: string, range: string): Promise<void> {
+  const sheets = await obterCliente();
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range, requestBody: {} });
+}
+
 export async function batchUpdate(
   spreadsheetId: string,
   requests: sheets_v4.Schema$Request[],

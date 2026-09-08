@@ -91,10 +91,13 @@ precisam de uma conta de servico:
   retorna o QR code (PNG base64) que os alunos escaneiam para chamar
   `POST /aulas/:uuid/presenca`. `POST /aulas/:uuid/finalizar` fecha a aula,
   calcula quem compareceu/faltou, soma a frequencia dos presentes e
-  sincroniza a planilha de frequencia: celula do dia verde = presente,
-  vermelha = faltou, em branco = aluno nao tem aula naquele dia; celula
-  do nome verde = 0 faltas acumuladas, amarela = 1-2 faltas, vermelha =
-  3+ faltas.
+  sincroniza a planilha de frequencia. A planilha ganha 1 coluna nova por
+  aula finalizada (nao por dia da semana fixo), entao o historico
+  completo fica visivel a medida que as aulas acontecem: celula da aula
+  verde = presente, vermelha = faltou, em branco = a aula nao e do dia
+  matriculado do aluno; celula do nome verde = 0 faltas acumuladas no dia
+  dele, amarela = 1-2 faltas, vermelha = 3+ faltas. A planilha inteira e
+  limpa e reescrita a cada sincronizacao.
 - **Doacoes**: `POST /doacoes` e publico (o doador nao tem conta no
   sistema) e cria o doador junto com a lista de materiais doados (cada
   material com UUID proprio na tabela `MaterialDoado`). Gerenciar doacoes

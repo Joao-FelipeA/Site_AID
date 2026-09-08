@@ -1,8 +1,9 @@
 import { sheets_v4 } from "googleapis";
 import { prisma } from "../lib/prisma";
 import { env } from "../config/env";
-import { batchUpdate, escreverValores, obterPrimeiraAbaId } from "../lib/googleSheets";
-import { labelDiaSemana, ORDEM_DIAS_SEMANA } from "../utils/diasSemana";
+import { batchUpdate, escreverValores, limparValores, obterPrimeiraAbaId } from "../lib/googleSheets";
+import { ORDEM_DIAS_SEMANA } from "../utils/diasSemana";
+import { DiaSemana } from "@prisma/client";
 
 type StatusCelula = "verde" | "amarelo" | "vermelho" | null;
 
@@ -14,6 +15,9 @@ const COR_NEUTRA = { red: 1, green: 1, blue: 1 };
 const COLUNA_NOME = 1; // A=RGM, B=Nome
 const COLUNAS_FIXAS = 2; // RGM, Nome
 
+const LIMITE_LINHAS_LIMPEZA = 2000;
+const LIMITE_COLUNAS_LIMPEZA = 700;
+
 /** Verde = 0 faltas, amarelo = 1-2 faltas, vermelho = 3+ faltas. */
 function corPorFaltas(faltas: number): StatusCelula {
   if (faltas === 0) return "verde";
@@ -21,13 +25,19 @@ function corPorFaltas(faltas: number): StatusCelula {
   return "vermelho";
 }
 
+function formatarDataCurta(data: Date): string {
+  return data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 /**
- * Reconstroi a planilha de frequencia inteira: uma linha por aluno, uma
- * coluna por dia da semana (Seg-Sex) mais o nome. A celula do dia fica
- * verde se o aluno marcou presenca na ultima aula finalizada daquele dia,
- * vermelha se estava matriculado e faltou, e em branco se ele nao tem
- * aula naquele dia. A celula do NOME reflete o total de faltas acumuladas
- * no dia dele: verde sem faltas, amarela com 1-2, vermelha com 3+.
+ * Reconstroi a planilha de frequencia inteira: uma linha por aluno, e uma
+ * coluna por AULA NORMAL JA FINALIZADA (nao por dia da semana fixo) - a
+ * cada aula finalizada, uma coluna nova entra a direita com a data dela,
+ * preservando o historico completo em vez de sobrescrever a ultima aula
+ * do dia. A celula fica verde se o aluno (matriculado naquele dia) marcou
+ * presenca nessa aula, vermelha se faltou, e em branco se a aula nao e do
+ * dia dele. A celula do NOME reflete o total de faltas acumuladas no dia
+ * dele: verde sem faltas, amarela com 1-2, vermelha com 3+.
  */
 export async function sincronizarPlanilhaFrequencia(): Promise<void> {
   const spreadsheetId = env.google.planilhaFrequenciaId;
@@ -38,53 +48,40 @@ export async function sincronizarPlanilhaFrequencia(): Promise<void> {
     orderBy: { nome: "asc" },
   });
 
-  const ultimaAulaPorDia = new Map<string, { uuid: string; dataAula: Date }>();
-  const totalFinalizadasPorDia = new Map<string, number>(); // diaAula -> qtd aulas finalizadas
-  for (const dia of ORDEM_DIAS_SEMANA) {
-    const ultima = await prisma.aula.findFirst({
-      where: { diaAula: dia, finalizada: true },
-      orderBy: { dataAula: "desc" },
-    });
-    if (ultima) ultimaAulaPorDia.set(dia, { uuid: ultima.uuid, dataAula: ultima.dataAula });
+  const aulasFinalizadas = await prisma.aula.findMany({
+    where: { finalizada: true },
+    orderBy: { dataAula: "asc" },
+  });
 
+  const presencas = await prisma.presenca.findMany({
+    where: { aulaUuid: { in: aulasFinalizadas.map((a) => a.uuid) } },
+  });
+  const presencaSet = new Set(presencas.map((p) => `${p.aulaUuid}:${p.usuarioUuid}`));
+
+  const totalFinalizadasPorDia = new Map<DiaSemana, number>();
+  for (const dia of ORDEM_DIAS_SEMANA) {
     const total = await prisma.aula.count({ where: { diaAula: dia, finalizada: true } });
     totalFinalizadasPorDia.set(dia, total);
   }
 
-  const aulaUuids = [...ultimaAulaPorDia.values()].map((a) => a.uuid);
-  const presencas = await prisma.presenca.findMany({ where: { aulaUuid: { in: aulaUuids } } });
-  const presencaSet = new Set(presencas.map((p) => `${p.aulaUuid}:${p.usuarioUuid}`));
-
-  const cabecalho = ["RGM", "Nome", ...ORDEM_DIAS_SEMANA.map(labelDiaSemana)];
+  const cabecalho = ["RGM", "Nome", ...aulasFinalizadas.map((a) => formatarDataCurta(a.dataAula))];
   const linhas: string[][] = [cabecalho];
-  const statusDiasPorLinha: StatusCelula[][] = [];
+  const statusColunasPorLinha: StatusCelula[][] = [];
   const statusNomePorLinha: StatusCelula[] = [];
 
   for (const usuario of usuarios) {
     const linha = [usuario.rgm, usuario.nome];
     const statusLinha: StatusCelula[] = [];
 
-    for (const dia of ORDEM_DIAS_SEMANA) {
-      if (usuario.diaAula !== dia) {
+    for (const aula of aulasFinalizadas) {
+      if (usuario.diaAula !== aula.diaAula) {
         linha.push("");
         statusLinha.push(null);
         continue;
       }
 
-      const aulaInfo = ultimaAulaPorDia.get(dia);
-      if (!aulaInfo) {
-        linha.push("Sem aula finalizada");
-        statusLinha.push(null);
-        continue;
-      }
-
-      const presente = presencaSet.has(`${aulaInfo.uuid}:${usuario.uuid}`);
-      const dataFormatada = aulaInfo.dataAula.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-      linha.push(dataFormatada);
+      const presente = presencaSet.has(`${aula.uuid}:${usuario.uuid}`);
+      linha.push(formatarDataCurta(aula.dataAula));
       statusLinha.push(presente ? "verde" : "vermelho");
     }
 
@@ -93,21 +90,45 @@ export async function sincronizarPlanilhaFrequencia(): Promise<void> {
     statusNomePorLinha.push(usuario.diaAula ? corPorFaltas(faltas) : null);
 
     linhas.push(linha);
-    statusDiasPorLinha.push(statusLinha);
+    statusColunasPorLinha.push(statusLinha);
   }
 
+  const sheetId = await obterPrimeiraAbaId(spreadsheetId);
+  // Limpa tudo antes de reescrever: como o numero de colunas agora cresce
+  // e encolhe (1 por aula), sem isso colunas/cores antigas ficam presas a
+  // direita quando a planilha atual tem menos aulas do que ja teve.
+  await limparPlanilha(spreadsheetId, sheetId);
   await escreverValores(spreadsheetId, "A1", linhas);
-  await aplicarCores(spreadsheetId, statusDiasPorLinha, statusNomePorLinha);
+  await aplicarCores(spreadsheetId, sheetId, statusColunasPorLinha, statusNomePorLinha);
+}
+
+async function limparPlanilha(spreadsheetId: string, sheetId: number): Promise<void> {
+  await limparValores(spreadsheetId, "A1:ZZ2000");
+  await batchUpdate(spreadsheetId, [
+    {
+      repeatCell: {
+        range: {
+          sheetId,
+          startRowIndex: 0,
+          endRowIndex: LIMITE_LINHAS_LIMPEZA,
+          startColumnIndex: 0,
+          endColumnIndex: LIMITE_COLUNAS_LIMPEZA,
+        },
+        cell: { userEnteredFormat: { backgroundColor: COR_NEUTRA } },
+        fields: "userEnteredFormat.backgroundColor",
+      },
+    },
+  ]);
 }
 
 async function aplicarCores(
   spreadsheetId: string,
-  statusDiasPorLinha: StatusCelula[][],
+  sheetId: number,
+  statusColunasPorLinha: StatusCelula[][],
   statusNomePorLinha: StatusCelula[],
 ): Promise<void> {
-  if (statusDiasPorLinha.length === 0) return;
+  if (statusColunasPorLinha.length === 0) return;
 
-  const sheetId = await obterPrimeiraAbaId(spreadsheetId);
   const requests: sheets_v4.Schema$Request[] = [];
 
   function corDe(status: StatusCelula) {
@@ -133,7 +154,7 @@ async function aplicarCores(
     });
   }
 
-  statusDiasPorLinha.forEach((statusLinha, indiceLinha) => {
+  statusColunasPorLinha.forEach((statusLinha, indiceLinha) => {
     statusLinha.forEach((status, indiceColuna) => {
       requisitarCor(indiceLinha, indiceColuna + COLUNAS_FIXAS, status);
     });
