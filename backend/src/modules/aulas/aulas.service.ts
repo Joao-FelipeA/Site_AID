@@ -91,6 +91,46 @@ export async function marcarPresenca(aulaUuid: string, usuarioUuid: string, toke
   });
 }
 
+/**
+ * Admin: marca ou desmarca presenca de um aluno numa aula, sem QR code.
+ * Funciona tanto antes quanto depois da aula finalizada - se ja
+ * finalizada, ajusta a frequencia acumulada do aluno junto (fora daqui,
+ * finalizarAula ja fez isso uma vez; aqui e uma correcao pontual).
+ */
+export async function definirPresencaAdmin(aulaUuid: string, usuarioUuid: string, presente: boolean) {
+  const aula = await prisma.aula.findUniqueOrThrow({ where: { uuid: aulaUuid } });
+  const usuario = await prisma.usuario.findUniqueOrThrow({ where: { uuid: usuarioUuid } });
+
+  if (usuario.diaAula !== aula.diaAula) {
+    throw new AppError(403, "Aluno nao matriculado neste dia de aula.");
+  }
+
+  const existente = await prisma.presenca.findUnique({
+    where: { aulaUuid_usuarioUuid: { aulaUuid, usuarioUuid } },
+  });
+
+  if (presente && existente) return existente;
+  if (!presente && !existente) return null;
+
+  return prisma.$transaction(async (tx) => {
+    if (presente) {
+      const presenca = await tx.presenca.create({ data: { aulaUuid, usuarioUuid } });
+      await tx.aula.update({ where: { uuid: aulaUuid }, data: { qtdPresenca: { increment: 1 } } });
+      if (aula.finalizada) {
+        await tx.usuario.update({ where: { uuid: usuarioUuid }, data: { frequencia: { increment: 1 } } });
+      }
+      return presenca;
+    }
+
+    await tx.presenca.delete({ where: { aulaUuid_usuarioUuid: { aulaUuid, usuarioUuid } } });
+    await tx.aula.update({ where: { uuid: aulaUuid }, data: { qtdPresenca: { decrement: 1 } } });
+    if (aula.finalizada) {
+      await tx.usuario.update({ where: { uuid: usuarioUuid }, data: { frequencia: { decrement: 1 } } });
+    }
+    return null;
+  });
+}
+
 export async function finalizarAula(uuid: string) {
   return prisma.$transaction(async (tx) => {
     const aula = await tx.aula.findUniqueOrThrow({ where: { uuid }, include: { presencas: true } });

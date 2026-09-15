@@ -1,11 +1,12 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Modal } from "../../components/Modal";
 import { api, ApiError } from "../../lib/api";
 import { formatarData, hojeISO, labelDiaSemana } from "../../lib/diasSemana";
-import type { Aula, Usuario } from "../../lib/types";
+import type { Aula, AulaComPresencas, Usuario } from "../../lib/types";
 import type { MostrarMensagem } from "./AdminDashboard";
 
 interface Props {
+  usuarios: Usuario[];
   mostrarMensagem: MostrarMensagem;
 }
 
@@ -20,9 +21,10 @@ type EstadoModal =
   | { tipo: "fechado" }
   | { tipo: "nova" }
   | { tipo: "qrcode"; qrCodeDataUrl: string; url: string }
-  | { tipo: "finalizada"; resultado: ResultadoFinalizacao };
+  | { tipo: "finalizada"; resultado: ResultadoFinalizacao }
+  | { tipo: "presencas"; aula: Aula };
 
-export function AulasTab({ mostrarMensagem }: Props) {
+export function AulasTab({ usuarios, mostrarMensagem }: Props) {
   const [aulas, setAulas] = useState<Aula[]>([]);
   const [modal, setModal] = useState<EstadoModal>({ tipo: "fechado" });
 
@@ -139,6 +141,12 @@ export function AulasTab({ mostrarMensagem }: Props) {
                     >
                       QR
                     </button>{" "}
+                    <button
+                      onClick={() => setModal({ tipo: "presencas", aula })}
+                      className="bg-yellow-500/10 text-yellow-400 text-xs uppercase px-2 py-1.5 border border-yellow-500/50 hover:bg-yellow-500 hover:text-black transition-colors rounded"
+                    >
+                      Presenças
+                    </button>{" "}
                     {!aula.finalizada && (
                       <button
                         onClick={() => finalizarAula(aula)}
@@ -188,6 +196,16 @@ export function AulasTab({ mostrarMensagem }: Props) {
         </Modal>
       )}
 
+      {modal.tipo === "presencas" && (
+        <PresencasModal
+          aula={modal.aula}
+          usuarios={usuarios}
+          mostrarMensagem={mostrarMensagem}
+          onFechar={() => setModal({ tipo: "fechado" })}
+          onAtualizado={recarregar}
+        />
+      )}
+
       {modal.tipo === "finalizada" && (
         <Modal aberto onFechar={() => setModal({ tipo: "fechado" })} titulo="Aula Finalizada" corTitulo="text-neon">
           {modal.resultado.avisoPlanilha && (
@@ -229,6 +247,133 @@ export function AulasTab({ mostrarMensagem }: Props) {
         </Modal>
       )}
     </div>
+  );
+}
+
+// ---------- Presenças (admin) ----------
+
+function PresencasModal({
+  aula,
+  usuarios,
+  mostrarMensagem,
+  onFechar,
+  onAtualizado,
+}: {
+  aula: Aula;
+  usuarios: Usuario[];
+  mostrarMensagem: MostrarMensagem;
+  onFechar: () => void;
+  onAtualizado: () => Promise<void>;
+}) {
+  const [detalhe, setDetalhe] = useState<AulaComPresencas | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [alterando, setAlterando] = useState<string | null>(null);
+
+  const roster = useMemo(
+    () =>
+      usuarios
+        .filter((u) => !u.eAdmin && u.diaAula === aula.diaAula)
+        .sort((a, b) => a.nome.localeCompare(b.nome)),
+    [usuarios, aula.diaAula],
+  );
+
+  async function carregarDetalhe() {
+    setCarregando(true);
+    try {
+      const dados = await api.get<AulaComPresencas>(`/aulas/${aula.uuid}`);
+      setDetalhe(dados);
+    } catch (e) {
+      mostrarMensagem(e instanceof ApiError ? e.message : "Falha ao carregar presenças.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregarDetalhe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aula.uuid]);
+
+  const presentesUuids = new Set((detalhe?.presencas ?? []).map((p) => p.usuarioUuid));
+
+  async function alternar(usuario: Usuario, presente: boolean) {
+    setAlterando(usuario.uuid);
+    try {
+      const resultado = await api.put<{ avisoPlanilha?: string }>(`/aulas/${aula.uuid}/presenca-admin`, {
+        usuarioUuid: usuario.uuid,
+        presente,
+      });
+      if (resultado.avisoPlanilha) mostrarMensagem(resultado.avisoPlanilha);
+      await carregarDetalhe();
+      await onAtualizado();
+    } catch (e) {
+      mostrarMensagem(e instanceof ApiError ? e.message : "Falha ao atualizar presença.");
+    } finally {
+      setAlterando(null);
+    }
+  }
+
+  async function marcarTodos(presente: boolean) {
+    for (const usuario of roster) {
+      if (presentesUuids.has(usuario.uuid) === presente) continue;
+      await alternar(usuario, presente);
+    }
+  }
+
+  return (
+    <Modal aberto onFechar={onFechar} titulo={`Presenças — ${formatarData(aula.dataAula)}`} corTitulo="text-yellow-400">
+      {carregando ? (
+        <p className="text-gray-400 text-sm">Carregando...</p>
+      ) : roster.length === 0 ? (
+        <p className="text-gray-500 text-sm">Nenhum aluno matriculado nesse dia.</p>
+      ) : (
+        <>
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => marcarTodos(true)}
+              className="flex-1 bg-green-500/10 text-green-400 text-xs uppercase px-2 py-1.5 border border-green-500/50 hover:bg-green-500 hover:text-black transition-colors rounded"
+            >
+              ✅ Marcar todos presentes
+            </button>
+            <button
+              onClick={() => marcarTodos(false)}
+              className="flex-1 bg-red-900/30 text-red-400 text-xs uppercase px-2 py-1.5 border border-red-700 hover:bg-red-700 hover:text-white transition-colors rounded"
+            >
+              ❌ Marcar todos ausentes
+            </button>
+          </div>
+          <div className="max-h-96 overflow-y-auto border border-yellow-500/20 rounded divide-y divide-yellow-500/10">
+            {roster.map((usuario) => {
+              const presente = presentesUuids.has(usuario.uuid);
+              return (
+                <label
+                  key={usuario.uuid}
+                  className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-yellow-500/5 cursor-pointer"
+                >
+                  <span className="text-sm text-gray-200">
+                    {usuario.nome} <span className="text-gray-500 text-xs">({usuario.rgm})</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={presente}
+                    disabled={alterando === usuario.uuid}
+                    onChange={(e) => alternar(usuario, e.target.checked)}
+                    className="rounded border-yellow-500/40 bg-black w-4 h-4 accent-green-500"
+                  />
+                </label>
+              );
+            })}
+          </div>
+        </>
+      )}
+      <button
+        type="button"
+        onClick={onFechar}
+        className="w-full mt-4 bg-gray-800 text-gray-300 border border-gray-600 hover:bg-gray-700 uppercase text-xs tracking-widest py-2 transition-colors rounded"
+      >
+        Fechar
+      </button>
+    </Modal>
   );
 }
 

@@ -13,5 +13,6 @@ aulasRouter.put("/:uuid", exigirAdmin, asyncHandler(aulasController.atualizar));
 aulasRouter.delete("/:uuid", exigirAdmin, asyncHandler(aulasController.remover));
 aulasRouter.get("/:uuid/qrcode", exigirAdmin, asyncHandler(aulasController.qrcode));
 aulasRouter.post("/:uuid/presenca", asyncHandler(aulasController.marcarPresenca));
+aulasRouter.put("/:uuid/presenca-admin", exigirAdmin, asyncHandler(aulasController.definirPresencaAdmin));
 aulasRouter.post("/:uuid/finalizar", exigirAdmin, asyncHandler(aulasController.finalizar));
 aulasRouter.post("/sincronizar-frequencia", exigirAdmin, asyncHandler(aulasController.sincronizarFrequencia));

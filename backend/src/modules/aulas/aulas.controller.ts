@@ -1,7 +1,12 @@
 import { Request, Response } from "express";
 import { AppError } from "../../lib/appError";
 import { sincronizarPlanilhaFrequencia } from "../../services/frequenciaSheetService";
-import { atualizarAulaSchema, criarAulaSchema, marcarPresencaSchema } from "./aulas.schema";
+import {
+  atualizarAulaSchema,
+  criarAulaSchema,
+  definirPresencaAdminSchema,
+  marcarPresencaSchema,
+} from "./aulas.schema";
 import * as aulasService from "./aulas.service";
 
 function sanitizarUsuario<T extends { senha: string }>(usuario: T) {
@@ -48,6 +53,23 @@ export async function marcarPresenca(req: Request, res: Response): Promise<void>
   const { token } = marcarPresencaSchema.parse(req.body);
   const presenca = await aulasService.marcarPresenca(req.params.uuid, req.usuario.sub, token);
   res.status(201).json(presenca);
+}
+
+export async function definirPresencaAdmin(req: Request, res: Response): Promise<void> {
+  const { usuarioUuid, presente } = definirPresencaAdminSchema.parse(req.body);
+  const aulaAntes = await aulasService.obterAula(req.params.uuid);
+  const presenca = await aulasService.definirPresencaAdmin(req.params.uuid, usuarioUuid, presente);
+
+  let avisoPlanilha: string | undefined;
+  if (aulaAntes.finalizada) {
+    try {
+      await sincronizarPlanilhaFrequencia();
+    } catch (erro) {
+      avisoPlanilha = `Presenca atualizada, mas falhou ao sincronizar a planilha de frequencia: ${(erro as Error).message}`;
+    }
+  }
+
+  res.json({ presenca, avisoPlanilha });
 }
 
 export async function finalizar(req: Request, res: Response): Promise<void> {

@@ -16,3 +16,9 @@ export const marcarPresencaRoboticaSchema = z.object({
   token: z.string().min(1, "token e obrigatorio."),
 });
 export type MarcarPresencaRoboticaInput = z.infer<typeof marcarPresencaRoboticaSchema>;
+
+export const definirPresencaRoboticaAdminSchema = z.object({
+  usuarioUuid: z.string().uuid("usuarioUuid deve ser um uuid valido."),
+  presente: z.boolean(),
+});
+export type DefinirPresencaRoboticaAdminInput = z.infer<typeof definirPresencaRoboticaAdminSchema>;

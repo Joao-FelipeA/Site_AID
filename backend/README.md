@@ -98,6 +98,13 @@ precisam de uma conta de servico:
   matriculado do aluno; celula do nome verde = 0 faltas acumuladas no dia
   dele, amarela = 1-2 faltas, vermelha = 3+ faltas. A planilha inteira e
   limpa e reescrita a cada sincronizacao.
+- **Presenca manual pelo admin**: `PUT /aulas/:uuid/presenca-admin` (e o
+  equivalente `/aulas-robotica/:uuid/presenca-admin`) deixa o admin
+  marcar/desmarcar a presenca de um aluno direto no painel, sem QR code.
+  Funciona tanto numa aula ainda aberta quanto numa ja finalizada - nesse
+  segundo caso, ajusta a frequencia acumulada do aluno na hora (e
+  resincroniza a planilha de frequencia, se a aula finalizada for uma
+  aula normal).
 - **Doacoes**: `POST /doacoes` e publico (o doador nao tem conta no
   sistema) e cria o doador junto com a lista de materiais doados (cada
   material com UUID proprio na tabela `MaterialDoado`). Gerenciar doacoes
@@ -124,12 +131,14 @@ precisam de uma conta de servico:
 | GET/PUT/DELETE | /aulas/:uuid | autenticado / admin | detalhe / editar / remover |
 | GET | /aulas/:uuid/qrcode | admin | gerar QR code da aula |
 | POST | /aulas/:uuid/presenca | autenticado | aluno marca presenca via QR |
+| PUT | /aulas/:uuid/presenca-admin | admin | marca/desmarca presenca de um aluno sem QR (antes ou depois de finalizada) |
 | POST | /aulas/:uuid/finalizar | admin | fecha a aula e sincroniza frequencia |
 | POST | /aulas/sincronizar-frequencia | admin | forca resincronizar a planilha de frequencia sem finalizar aula |
 | GET/POST | /aulas-robotica | autenticado / admin | listar / criar aula de robotica (data precisa ser sexta) |
 | GET/PUT/DELETE | /aulas-robotica/:uuid | autenticado / admin | detalhe / editar / remover |
 | GET | /aulas-robotica/:uuid/qrcode | admin | gerar QR code da aula de robotica |
 | POST | /aulas-robotica/:uuid/presenca | autenticado | aluno marca presenca via QR |
+| PUT | /aulas-robotica/:uuid/presenca-admin | admin | marca/desmarca presenca de um aluno sem QR (antes ou depois de finalizada) |
 | POST | /aulas-robotica/:uuid/finalizar | admin | fecha a aula de robotica |
 | POST | /doacoes | publico | criar doacao + materiais (sem login) |
 | GET | /doacoes | autenticado | listar doacoes |

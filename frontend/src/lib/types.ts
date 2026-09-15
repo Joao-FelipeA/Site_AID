@@ -64,6 +64,18 @@ export interface AulaComPresencas extends Aula {
   presencas: Presenca[];
 }
 
+export interface PresencaRobotica {
+  uuid: string;
+  aulaRoboticaUuid: string;
+  usuarioUuid: string;
+  marcadoEm: string;
+  usuario: Usuario;
+}
+
+export interface AulaRoboticaComPresencas extends AulaRobotica {
+  presencas: PresencaRobotica[];
+}
+
 export interface MaterialDoado {
   uuid: string;
   doacaoUuid: string;

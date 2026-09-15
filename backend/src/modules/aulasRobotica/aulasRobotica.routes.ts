@@ -13,4 +13,9 @@ aulasRoboticaRouter.put("/:uuid", exigirAdmin, asyncHandler(aulasRoboticaControl
 aulasRoboticaRouter.delete("/:uuid", exigirAdmin, asyncHandler(aulasRoboticaController.remover));
 aulasRoboticaRouter.get("/:uuid/qrcode", exigirAdmin, asyncHandler(aulasRoboticaController.qrcode));
 aulasRoboticaRouter.post("/:uuid/presenca", asyncHandler(aulasRoboticaController.marcarPresenca));
+aulasRoboticaRouter.put(
+  "/:uuid/presenca-admin",
+  exigirAdmin,
+  asyncHandler(aulasRoboticaController.definirPresencaAdmin),
+);
 aulasRoboticaRouter.post("/:uuid/finalizar", exigirAdmin, asyncHandler(aulasRoboticaController.finalizar));

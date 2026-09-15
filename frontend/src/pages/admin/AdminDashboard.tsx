@@ -68,8 +68,8 @@ export function AdminDashboard() {
         {aba === "usuarios" && (
           <UsuariosTab usuarios={usuarios} recarregar={recarregarUsuarios} mostrarMensagem={mostrarMensagem} />
         )}
-        {aba === "aulas" && <AulasTab mostrarMensagem={mostrarMensagem} />}
-        {aba === "robotica" && <AulaRoboticaTab mostrarMensagem={mostrarMensagem} />}
+        {aba === "aulas" && <AulasTab usuarios={usuarios} mostrarMensagem={mostrarMensagem} />}
+        {aba === "robotica" && <AulaRoboticaTab usuarios={usuarios} mostrarMensagem={mostrarMensagem} />}
         {aba === "doacoes" && <DoacoesTab mostrarMensagem={mostrarMensagem} />}
       </div>
     </Layout>

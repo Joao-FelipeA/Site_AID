@@ -93,6 +93,47 @@ export async function marcarPresencaRobotica(aulaUuid: string, usuarioUuid: stri
   });
 }
 
+/**
+ * Admin: marca ou desmarca presenca de um aluno numa aula de robotica,
+ * sem QR code. Funciona antes ou depois da aula finalizada - se ja
+ * finalizada, ajusta a frequenciaRobotica acumulada do aluno junto.
+ */
+export async function definirPresencaRoboticaAdmin(aulaUuid: string, usuarioUuid: string, presente: boolean) {
+  const aula = await prisma.aulaRobotica.findUniqueOrThrow({ where: { uuid: aulaUuid } });
+  const usuario = await prisma.usuario.findUniqueOrThrow({ where: { uuid: usuarioUuid } });
+
+  if (usuario.horarioRobotica !== aula.horario) {
+    throw new AppError(403, "Aluno nao matriculado neste horario de robotica.");
+  }
+
+  const existente = await prisma.presencaRobotica.findUnique({
+    where: { aulaRoboticaUuid_usuarioUuid: { aulaRoboticaUuid: aulaUuid, usuarioUuid } },
+  });
+
+  if (presente && existente) return existente;
+  if (!presente && !existente) return null;
+
+  return prisma.$transaction(async (tx) => {
+    if (presente) {
+      const presenca = await tx.presencaRobotica.create({ data: { aulaRoboticaUuid: aulaUuid, usuarioUuid } });
+      await tx.aulaRobotica.update({ where: { uuid: aulaUuid }, data: { qtdPresenca: { increment: 1 } } });
+      if (aula.finalizada) {
+        await tx.usuario.update({ where: { uuid: usuarioUuid }, data: { frequenciaRobotica: { increment: 1 } } });
+      }
+      return presenca;
+    }
+
+    await tx.presencaRobotica.delete({
+      where: { aulaRoboticaUuid_usuarioUuid: { aulaRoboticaUuid: aulaUuid, usuarioUuid } },
+    });
+    await tx.aulaRobotica.update({ where: { uuid: aulaUuid }, data: { qtdPresenca: { decrement: 1 } } });
+    if (aula.finalizada) {
+      await tx.usuario.update({ where: { uuid: usuarioUuid }, data: { frequenciaRobotica: { decrement: 1 } } });
+    }
+    return null;
+  });
+}
+
 export async function finalizarAulaRobotica(uuid: string) {
   return prisma.$transaction(async (tx) => {
     const aula = await tx.aulaRobotica.findUniqueOrThrow({ where: { uuid }, include: { presencas: true } });

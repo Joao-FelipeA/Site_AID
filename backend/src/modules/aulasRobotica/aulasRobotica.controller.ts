@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
 import { AppError } from "../../lib/appError";
-import { atualizarAulaRoboticaSchema, criarAulaRoboticaSchema, marcarPresencaRoboticaSchema } from "./aulasRobotica.schema";
+import {
+  atualizarAulaRoboticaSchema,
+  criarAulaRoboticaSchema,
+  definirPresencaRoboticaAdminSchema,
+  marcarPresencaRoboticaSchema,
+} from "./aulasRobotica.schema";
 import * as aulasRoboticaService from "./aulasRobotica.service";
 
 function sanitizarUsuario<T extends { senha: string }>(usuario: T) {
@@ -47,6 +52,12 @@ export async function marcarPresenca(req: Request, res: Response): Promise<void>
   const { token } = marcarPresencaRoboticaSchema.parse(req.body);
   const presenca = await aulasRoboticaService.marcarPresencaRobotica(req.params.uuid, req.usuario.sub, token);
   res.status(201).json(presenca);
+}
+
+export async function definirPresencaAdmin(req: Request, res: Response): Promise<void> {
+  const { usuarioUuid, presente } = definirPresencaRoboticaAdminSchema.parse(req.body);
+  const presenca = await aulasRoboticaService.definirPresencaRoboticaAdmin(req.params.uuid, usuarioUuid, presente);
+  res.json({ presenca });
 }
 
 export async function finalizar(req: Request, res: Response): Promise<void> {
